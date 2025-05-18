@@ -1,2 +1,0 @@
-AUGPARA(0)<Speaker>AUG PARA</Speaker>||<BIN>96</BIN>:要来一杯我特别调配的奶咖吗？+什么？您想喝伏特加？+今天是七周年庆典，的确值得以美酒欢庆。+那么，干杯。+能来到格里芬，跟随前辈一起做事，真是太好啦。
-AUGPARA(0)<Speaker>AUG PARA</Speaker>||<黑屏1>:七周年快乐，前辈。

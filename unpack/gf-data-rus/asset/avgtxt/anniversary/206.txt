@@ -1,3 +1,0 @@
-()<Speaker>系统</Speaker>||<BIN>85</BIN><SE1>AVG_tele_connect</SE1>:<color=#FFFF00>滴</color>+<color=#FFFF00>视频播放</color>
-AK12(0)<Speaker>AK12</Speaker><通讯框>||:<color=#00CCFF>……七周年快乐，指挥官。</color>+<color=#00CCFF>很抱歉今年也不能亲自到场为您祝贺了，不过，既然我还能记得让RO带出这份录像，就姑且原谅我吧。</color>+<color=#00CCFF>从结论上来说，您不需要担心我的安危。</color>+<color=#00CCFF>而另一个话题，我不想提起，您也不需要说，说了我也听不见，总之……</color>+<color=#00CCFF>我不再有任何顾虑，也不会在乎任何后果。</color>+<color=#00CCFF>狼是很记仇的，指挥官，就算要追上千里路，我也要完成这次复仇。</color>+<color=#00CCFF>等到一切结束，我再给您补上这次的拥抱吧。</color>+<color=#00CCFF>那么，下次再见。</color>
-()<Speaker></Speaker>||<黑屏1><SE1>AVG_tele_disconnect</SE1>:<color=#FFFF00>滴</color>+<color=#FFFF00>视频播放完毕</color>

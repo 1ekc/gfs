@@ -1,2 +1,0 @@
-63type(0)<Speaker>63式</Speaker><Position>0,80</Position>||<BIN>8</BIN>:长官，我又设计了一版七周年庆典的小游戏方案，请您过目！+啊，方案太长了吗？可是，不把各种细节都写清楚怎么行呢？+……诶，这个地方是不是应该再调整一下？
-63type(0)<Speaker>63式</Speaker><Position>0,80</Position>||<黑屏1>:请稍等我一下！我再去改一版新的出来！

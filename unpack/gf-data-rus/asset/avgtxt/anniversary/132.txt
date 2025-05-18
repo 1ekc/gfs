@@ -1,2 +1,0 @@
-59type(0)<Speaker>59式</Speaker><Position>0,80</Position>||<BIN>96</BIN>:长官长官！……您在找马卡洛夫呀？+庆典会场这么大，越是心急想找什么，就越容易找不到哦！
-59type(0)<Speaker>59式</Speaker><Position>0,80</Position>||<黑屏1>:要不陪我玩一会吧？往往在您意想不到的时候，您想找的就会自己出现的，真的！
