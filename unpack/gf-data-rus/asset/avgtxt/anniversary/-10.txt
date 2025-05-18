@@ -1,0 +1,4 @@
+()||<BIN>8</BIN><Night><SE1>AVG_tele_connect</SE1>:<color=#FFFF00>滴</color>+<color=#FFFF00>通讯留言</color>
+()<Speaker>指挥官</Speaker>||:……安洁，我是指挥官。+……+今天是我在格里芬就职七周年的纪念日，忙里偷闲，也为了调节基地的气氛，春田她们还是按惯例举办了宴会。+她们都给我准备了祝贺，甚至还有礼物，就像往年那样。+……+……我也表现得很高兴，春田，G36，她们并没有懈怠，也不是在白费力气。+越是在这种时候，大家越是需要这样短暂的休憩，否则，压力会摧垮那些不够坚强的人。+……+我向你保证，这不会是格里芬最后一次像这样聚在一起。+我向你保证，我不会就此放弃。
+()<Speaker>指挥官</Speaker>||<SE1>AVG_20Winter_Cheers</SE1>:你最爱的伏特加，这一杯，我敬你。
+()||<黑屏1><SE1>AVG_tele_disconnect</SE1>:<color=#FFFF00>留言结束</color>+<color=#FFFF00>信息发送中</color>+<color=#FFFF00>发送失败</color>

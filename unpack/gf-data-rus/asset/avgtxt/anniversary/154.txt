@@ -1,0 +1,2 @@
+m500Mod(0)<Speaker>M500</Speaker><Position>0,180</Position>||<BIN>8</BIN>:Morning，指挥官！按照约定，该起床早训啦！+咦？今天有周年庆典？太好了，那就更不能懈怠了！+新的一年更需要崭新的面貌和强健的体魄。对吧，木销？
+m500Mod(3)<Speaker>木销</Speaker>||<黑屏1>:汪！汪！

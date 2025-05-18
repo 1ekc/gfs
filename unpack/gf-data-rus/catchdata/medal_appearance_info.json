@@ -1,0 +1,1592 @@
+[
+    {
+        "id": "1",
+        "pic_code": "Icon_Medal_QuarterEvent",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "2",
+        "pic_code": "Icon_Medal_Battle_01",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "3",
+        "pic_code": "Icon_Medal_Battle_02",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "4",
+        "pic_code": "Icon_Medal_Battle_03",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "5",
+        "pic_code": "Icon_Medal_Battle_04",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "6",
+        "pic_code": "Icon_Medal_Battle_05",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "7",
+        "pic_code": "Icon_Medal_Collection_01",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "8",
+        "pic_code": "Icon_Medal_Collection_02",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "9",
+        "pic_code": "Icon_Medal_Collection_03",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "10",
+        "pic_code": "Icon_Medal_Collection_04",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "11",
+        "pic_code": "Icon_Medal_Collection_05",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "12",
+        "pic_code": "Icon_Medal_Challenger_01",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "13",
+        "pic_code": "Icon_Medal_Challenger_02",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "14",
+        "pic_code": "Icon_Medal_Challenger_03",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "15",
+        "pic_code": "Icon_Medal_Challenger_04",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "16",
+        "pic_code": "Icon_Medal_Challenger_05",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "17",
+        "pic_code": "Icon_Medal_Collaboration",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "18",
+        "pic_code": "Icon_Medal_SangvisBattle_01",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "19",
+        "pic_code": "Icon_Medal_SangvisBattle_02",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "20",
+        "pic_code": "Icon_Medal_SangvisBattle_03",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "21",
+        "pic_code": "Icon_Medal_SangvisBattle_04",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "22",
+        "pic_code": "Icon_Medal_SangvisBattle_05",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "23",
+        "pic_code": "Icon_Medal_Chess_01",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "24",
+        "pic_code": "Icon_Medal_Chess_02",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "25",
+        "pic_code": "Icon_Medal_Chess_03",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "26",
+        "pic_code": "Icon_Medal_Chess_04",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "27",
+        "pic_code": "Icon_Medal_Chess_05",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "28",
+        "pic_code": "Icon_Medal_Chess_06",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "29",
+        "pic_code": "Icon_Medal_2022winter",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "30",
+        "pic_code": "Icon_Medal_2022winter_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "31",
+        "pic_code": "Icon_Medal_2022winter_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "32",
+        "pic_code": "Icon_Medal_2022winter_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "33",
+        "pic_code": "Icon_Medal_2022winter_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "34",
+        "pic_code": "Icon_Medal_2022winter_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "35",
+        "pic_code": "Icon_Medal_2022winter_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "36",
+        "pic_code": "Icon_Medal_2022winter_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "37",
+        "pic_code": "Icon_Medal_2022winter_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "38",
+        "pic_code": "Icon_Medal_2022winter_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "39",
+        "pic_code": "Icon_Medal_2022winter_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "40",
+        "pic_code": "Icon_Medal_2022winter_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "41",
+        "pic_code": "Icon_Medal_2022winter_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "42",
+        "pic_code": "Icon_Medal_Theater8th",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "43",
+        "pic_code": "Icon_Medal_Theater8th_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "44",
+        "pic_code": "Icon_Medal_Theater8th_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "45",
+        "pic_code": "Icon_Medal_Theater8th_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "46",
+        "pic_code": "Icon_Medal_Theater8th_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "47",
+        "pic_code": "Icon_Medal_Theater8th_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "48",
+        "pic_code": "Icon_Medal_Theater8th_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "49",
+        "pic_code": "Icon_Medal_Theater8th_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "50",
+        "pic_code": "Icon_Medal_Theater8th_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "51",
+        "pic_code": "Icon_Medal_Theater8th_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "52",
+        "pic_code": "Icon_Medal_Theater8th_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "53",
+        "pic_code": "Icon_Medal_Theater8th_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "54",
+        "pic_code": "Icon_Medal_Theater8th_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "55",
+        "pic_code": "Icon_Medal_2019winter_re_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "56",
+        "pic_code": "Icon_Medal_2019winter_re_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "57",
+        "pic_code": "Icon_Medal_2019winter_re_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "58",
+        "pic_code": "Icon_Medal_2019winter_re_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "59",
+        "pic_code": "Icon_Medal_2019winter_re_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "60",
+        "pic_code": "Icon_Medal_2019winter_re_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "61",
+        "pic_code": "Icon_Medal_2019winter_re_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "62",
+        "pic_code": "Icon_Medal_2019winter_re_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "63",
+        "pic_code": "Icon_Medal_2019winter_re_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "64",
+        "pic_code": "Icon_Medal_2019winter_re_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "65",
+        "pic_code": "Icon_Medal_2019winter_re_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "66",
+        "pic_code": "Icon_Medal_2019winter_re_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "67",
+        "pic_code": "Icon_Medal_2022summer",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "68",
+        "pic_code": "Icon_Medal_2022summer_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "69",
+        "pic_code": "Icon_Medal_2022summer_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "70",
+        "pic_code": "Icon_Medal_2022summer_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "71",
+        "pic_code": "Icon_Medal_2022summer_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "72",
+        "pic_code": "Icon_Medal_2022summer_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "73",
+        "pic_code": "Icon_Medal_2022summer_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "74",
+        "pic_code": "Icon_Medal_2022summer_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "75",
+        "pic_code": "Icon_Medal_2022summer_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "76",
+        "pic_code": "Icon_Medal_2022summer_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "77",
+        "pic_code": "Icon_Medal_2022summer_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "78",
+        "pic_code": "Icon_Medal_2022summer_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "79",
+        "pic_code": "Icon_Medal_2022summer_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "80",
+        "pic_code": "Icon_Medal_Theater9th",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "81",
+        "pic_code": "Icon_Medal_Theater9th_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "82",
+        "pic_code": "Icon_Medal_Theater9th_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "83",
+        "pic_code": "Icon_Medal_Theater9th_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "84",
+        "pic_code": "Icon_Medal_Theater9th_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "85",
+        "pic_code": "Icon_Medal_Theater9th_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "86",
+        "pic_code": "Icon_Medal_Theater9th_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "87",
+        "pic_code": "Icon_Medal_Theater9th_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "88",
+        "pic_code": "Icon_Medal_Theater9th_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "89",
+        "pic_code": "Icon_Medal_Theater9th_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "90",
+        "pic_code": "Icon_Medal_Theater9th_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "91",
+        "pic_code": "Icon_Medal_Theater9th_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "92",
+        "pic_code": "Icon_Medal_Theater9th_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "93",
+        "pic_code": "Icon_Medal_2021winter_re_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "94",
+        "pic_code": "Icon_Medal_2021winter_re_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "95",
+        "pic_code": "Icon_Medal_2021winter_re_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "96",
+        "pic_code": "Icon_Medal_2021winter_re_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "97",
+        "pic_code": "Icon_Medal_2021winter_re_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "98",
+        "pic_code": "Icon_Medal_2021winter_re_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "99",
+        "pic_code": "Icon_Medal_2021winter_re_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "100",
+        "pic_code": "Icon_Medal_2021winter_re_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "101",
+        "pic_code": "Icon_Medal_2021winter_re_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "102",
+        "pic_code": "Icon_Medal_2021winter_re_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "103",
+        "pic_code": "Icon_Medal_2021winter_re_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "104",
+        "pic_code": "Icon_Medal_2021winter_re_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "105",
+        "pic_code": "Icon_Medal_2022Scar",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "106",
+        "pic_code": "Icon_Medal_saga",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "107",
+        "pic_code": "Icon_Medal_Theater10th",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "108",
+        "pic_code": "Icon_Medal_Theater10th_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "109",
+        "pic_code": "Icon_Medal_Theater10th_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "110",
+        "pic_code": "Icon_Medal_Theater10th_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "111",
+        "pic_code": "Icon_Medal_Theater10th_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "112",
+        "pic_code": "Icon_Medal_Theater10th_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "113",
+        "pic_code": "Icon_Medal_Theater10th_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "114",
+        "pic_code": "Icon_Medal_Theater10th_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "115",
+        "pic_code": "Icon_Medal_Theater10th_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "116",
+        "pic_code": "Icon_Medal_Theater10th_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "117",
+        "pic_code": "Icon_Medal_Theater10th_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "118",
+        "pic_code": "Icon_Medal_Theater10th_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "119",
+        "pic_code": "Icon_Medal_Theater10th_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "120",
+        "pic_code": "Icon_Medal_SlowShock",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "121",
+        "pic_code": "Icon_Medal_SlowShock_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "122",
+        "pic_code": "Icon_Medal_SlowShock_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "123",
+        "pic_code": "Icon_Medal_SlowShock_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "124",
+        "pic_code": "Icon_Medal_SlowShock_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "125",
+        "pic_code": "Icon_Medal_SlowShock_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "126",
+        "pic_code": "Icon_Medal_SlowShock_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "127",
+        "pic_code": "Icon_Medal_SlowShock_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "128",
+        "pic_code": "Icon_Medal_SlowShock_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "129",
+        "pic_code": "Icon_Medal_SlowShock_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "130",
+        "pic_code": "Icon_Medal_SlowShock_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "131",
+        "pic_code": "Icon_Medal_SlowShock_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "132",
+        "pic_code": "Icon_Medal_SlowShock_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "133",
+        "pic_code": "Icon_Medal_2020winter_re_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "134",
+        "pic_code": "Icon_Medal_2020winter_re_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "135",
+        "pic_code": "Icon_Medal_2020winter_re_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "136",
+        "pic_code": "Icon_Medal_2020winter_re_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "137",
+        "pic_code": "Icon_Medal_2020winter_re_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "138",
+        "pic_code": "Icon_Medal_2020winter_re_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "139",
+        "pic_code": "Icon_Medal_2020winter_re_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "140",
+        "pic_code": "Icon_Medal_2020winter_re_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "141",
+        "pic_code": "Icon_Medal_2020winter_re_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "142",
+        "pic_code": "Icon_Medal_2020winter_re_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "143",
+        "pic_code": "Icon_Medal_2020winter_re_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "144",
+        "pic_code": "Icon_Medal_2020winter_re_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "145",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "146",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "147",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "148",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "149",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "150",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "151",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "152",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "153",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "154",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "155",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "156",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "157",
+        "pic_code": "Icon_Medal_TheaterJPAdd1st_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "158",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "159",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "160",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "161",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "162",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "163",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "164",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "165",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "166",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "167",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "168",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "169",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "170",
+        "pic_code": "Icon_Medal_TheaterJPAdd2nd_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "171",
+        "pic_code": "Icon_Medal_Theater11th",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "172",
+        "pic_code": "Icon_Medal_Theater11th_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "173",
+        "pic_code": "Icon_Medal_Theater11th_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "174",
+        "pic_code": "Icon_Medal_Theater11th_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "175",
+        "pic_code": "Icon_Medal_Theater11th_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "176",
+        "pic_code": "Icon_Medal_Theater11th_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "177",
+        "pic_code": "Icon_Medal_Theater11th_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "178",
+        "pic_code": "Icon_Medal_Theater11th_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "179",
+        "pic_code": "Icon_Medal_Theater11th_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "180",
+        "pic_code": "Icon_Medal_Theater11th_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "181",
+        "pic_code": "Icon_Medal_Theater11th_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "182",
+        "pic_code": "Icon_Medal_Theater11th_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "183",
+        "pic_code": "Icon_Medal_Theater11th_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "184",
+        "pic_code": "Icon_Medal_2020summer_re_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "185",
+        "pic_code": "Icon_Medal_2020summer_re_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "186",
+        "pic_code": "Icon_Medal_2020summer_re_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "187",
+        "pic_code": "Icon_Medal_2020summer_re_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "188",
+        "pic_code": "Icon_Medal_2020summer_re_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "189",
+        "pic_code": "Icon_Medal_2020summer_re_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "190",
+        "pic_code": "Icon_Medal_2020summer_re_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "191",
+        "pic_code": "Icon_Medal_2020summer_re_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "192",
+        "pic_code": "Icon_Medal_2020summer_re_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "193",
+        "pic_code": "Icon_Medal_2020summer_re_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "194",
+        "pic_code": "Icon_Medal_2020summer_re_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "195",
+        "pic_code": "Icon_Medal_2020summer_re_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "196",
+        "pic_code": "Icon_Medal_SAC2045",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "197",
+        "pic_code": "Icon_Medal_202404Activity",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "198",
+        "pic_code": "Icon_Medal_21winter_re_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "199",
+        "pic_code": "Icon_Medal_21winter_re_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "200",
+        "pic_code": "Icon_Medal_21winter_re_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "201",
+        "pic_code": "Icon_Medal_21winter_re_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "202",
+        "pic_code": "Icon_Medal_21winter_re_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "203",
+        "pic_code": "Icon_Medal_21winter_re_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "204",
+        "pic_code": "Icon_Medal_21winter_re_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "205",
+        "pic_code": "Icon_Medal_21winter_re_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "206",
+        "pic_code": "Icon_Medal_21winter_re_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "207",
+        "pic_code": "Icon_Medal_21winter_re_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "208",
+        "pic_code": "Icon_Medal_21winter_re_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "209",
+        "pic_code": "Icon_Medal_21winter_re_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "210",
+        "pic_code": "Icon_Medal_Theater12th",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "211",
+        "pic_code": "Icon_Medal_Theater12th_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "212",
+        "pic_code": "Icon_Medal_Theater12th_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "213",
+        "pic_code": "Icon_Medal_Theater12th_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "214",
+        "pic_code": "Icon_Medal_Theater12th_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "215",
+        "pic_code": "Icon_Medal_Theater12th_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "216",
+        "pic_code": "Icon_Medal_Theater12th_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "217",
+        "pic_code": "Icon_Medal_Theater12th_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "218",
+        "pic_code": "Icon_Medal_Theater12th_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "219",
+        "pic_code": "Icon_Medal_Theater12th_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "220",
+        "pic_code": "Icon_Medal_Theater12th_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "221",
+        "pic_code": "Icon_Medal_Theater12th_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "222",
+        "pic_code": "Icon_Medal_Theater12th_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "223",
+        "pic_code": "Icon_Medal_202406Activity",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "224",
+        "pic_code": "Icon_Medal_21summer_re_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "225",
+        "pic_code": "Icon_Medal_21summer_re_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "226",
+        "pic_code": "Icon_Medal_21summer_re_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "227",
+        "pic_code": "Icon_Medal_21summer_re_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "228",
+        "pic_code": "Icon_Medal_21summer_re_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "229",
+        "pic_code": "Icon_Medal_21summer_re_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "230",
+        "pic_code": "Icon_Medal_21summer_re_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "231",
+        "pic_code": "Icon_Medal_21summer_re_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "232",
+        "pic_code": "Icon_Medal_21summer_re_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "233",
+        "pic_code": "Icon_Medal_21summer_re_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "234",
+        "pic_code": "Icon_Medal_21summer_re_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "235",
+        "pic_code": "Icon_Medal_21summer_re_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "236",
+        "pic_code": "Icon_Medal_202407Activity",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "237",
+        "pic_code": "Icon_Medal_202408Activity",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "238",
+        "pic_code": "Icon_Medal_Theater13th",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "239",
+        "pic_code": "Icon_Medal_Theater13th_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "240",
+        "pic_code": "Icon_Medal_Theater13th_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "241",
+        "pic_code": "Icon_Medal_Theater13th_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "242",
+        "pic_code": "Icon_Medal_Theater13th_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "243",
+        "pic_code": "Icon_Medal_Theater13th_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "244",
+        "pic_code": "Icon_Medal_Theater13th_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "245",
+        "pic_code": "Icon_Medal_Theater13th_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "246",
+        "pic_code": "Icon_Medal_Theater13th_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "247",
+        "pic_code": "Icon_Medal_Theater13th_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "248",
+        "pic_code": "Icon_Medal_Theater13th_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "249",
+        "pic_code": "Icon_Medal_Theater13th_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "250",
+        "pic_code": "Icon_Medal_Theater13th_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "251",
+        "pic_code": "Icon_Medal_202410Activity",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "252",
+        "pic_code": "Icon_Medal_2024ArenaBreakout",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "253",
+        "pic_code": "Icon_Medal_202412Activity",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "254",
+        "pic_code": "Icon_Medal_202412Activity_rank_0",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "255",
+        "pic_code": "Icon_Medal_202412Activity_rank_11",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "256",
+        "pic_code": "Icon_Medal_202412Activity_rank_10",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "257",
+        "pic_code": "Icon_Medal_202412Activity_rank_9",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "258",
+        "pic_code": "Icon_Medal_202412Activity_rank_8",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "259",
+        "pic_code": "Icon_Medal_202412Activity_rank_7",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "260",
+        "pic_code": "Icon_Medal_202412Activity_rank_6",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "261",
+        "pic_code": "Icon_Medal_202412Activity_rank_5",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "262",
+        "pic_code": "Icon_Medal_202412Activity_rank_4",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "263",
+        "pic_code": "Icon_Medal_202412Activity_rank_3",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "264",
+        "pic_code": "Icon_Medal_202412Activity_rank_2",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    },
+    {
+        "id": "265",
+        "pic_code": "Icon_Medal_202412Activity_rank_1",
+        "effect_code": "",
+        "background_code": "Bg_IllustratedBook_MedalDetail_NEW"
+    }
+]

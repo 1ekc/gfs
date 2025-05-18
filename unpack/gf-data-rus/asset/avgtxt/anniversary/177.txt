@@ -1,0 +1,2 @@
+KLIN(0)<Speaker>KLIN</Speaker>||<BIN>8</BIN>:凌晨好，长官！+身为格里芬No.1的我，怎么可能白白把“第一个向指挥官道贺”的名额让给别人呢？+所以听好了——
+KLIN(0)<Shake>0.1</Shake><Speaker>KLIN</Speaker>||<黑屏1>:<size=50>周、年、快、乐！</size>

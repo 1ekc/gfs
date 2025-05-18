@@ -1,0 +1,2 @@
+HK512(0)<Speaker>HK512</Speaker><Position>0,80</Position>||<BIN>96</BIN>:指挥官七——+喂，不要在今天问这种闻者伤心的话啊！+CAWS总有一天会承认的，她永远是我的姐姐。+就像指挥官，永远是我的指挥官！
+HK512(0)<Speaker>HK512</Speaker><Position>0,80</Position>||<黑屏1>:嘿嘿，指挥官，七周年快乐啦！

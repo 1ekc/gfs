@@ -1,0 +1,2 @@
+ZB26(0)<Speaker>ZB26</Speaker><Position>0,90</Position>||<BIN>97</BIN>:指挥官，等一下！+您的帽子歪了一点点，请让我为您理正。+指挥官，您怎么脸红了，是我靠得太近了吗？
+ZB26(0)<Speaker>ZB26</Speaker><Position>0,90</Position>||<黑屏1>:您是今天最闪耀的明星，仪容不能有一点点瑕疵哦。+好了，进场吧，属于您的庆典就要开始了！

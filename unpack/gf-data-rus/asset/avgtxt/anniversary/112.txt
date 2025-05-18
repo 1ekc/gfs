@@ -1,0 +1,2 @@
+NEGEV(0)<Speaker>内格夫</Speaker><Position>0,150</Position>||<BIN>96</BIN>:转眼间又是一年过去了呢，指挥官。+才不是想和你探讨作战心得呢！+并不奇怪吧，今天可是七周年庆典诶，战斗专家也想放松一下。+总之，就是，那个，想感谢一下指挥官啦，谢谢您，新的一年也请继续加油哦！
+NEGEV(0)<Speaker>内格夫</Speaker><Position>0,150</Position>||<黑屏1>:干杯——

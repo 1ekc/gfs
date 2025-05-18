@@ -1,0 +1,3 @@
+SIGMCX(0)<Speaker>SIGMCX</Speaker>||<BIN>82</BIN>:要参与我的小游戏吗指挥官？+赢的人可以对输的人提一个要求。+什么要求都可以哦。
+SIGMCX(0)<Speaker>SIGMCX</Speaker>||:可恶，居然被你赢了！哼，提出你的要求吧。+什么，你竟然要求——+“扛着庆典上喝醉的人形们回宿舍”？哈，呆瓜……
+SIGMCX(0)<Speaker>SIGMCX</Speaker>||<黑屏1>:好吧，愿赌服输。

@@ -436,7 +436,7 @@ class Stories:
             root.joinpath('images', 'backgrounds.json'),
             root.joinpath('images', 'characters.json'),
         )
-        self.gf_data_directory = root.joinpath('gf-data-ch') if gf_data_directory is None else pathlib.Path(gf_data_directory)
+        self.gf_data_directory = root.joinpath('gf-data-rus') if gf_data_directory is None else pathlib.Path(gf_data_directory)
         self.content_tags = set()
         self.effect_tags = set()
         self.missing_audio = { 'bgm': set(), 'se': set() }
@@ -477,20 +477,34 @@ class Stories:
         return extracted
 
     def copy_missing_pieces(self):
+        # Обновленные пути для ручного копирования
         manual_chapters.get_extra_stories(self.gf_data_directory.joinpath('asset', 'avgtxt'))
         manual_chapters.get_extra_anniversary_stories(self.gf_data_directory.joinpath('asset', 'avgtxt'))
-        directory = utils.check_directory(self.gf_data_directory.joinpath('asset', 'avgtxt'))
-        for file in directory.glob('**/*.txt'):
-            rel = file.relative_to(directory)
-            name = str(rel)
+
+        # Проверяем существование папки (опционально)
+        avg_txt_dir = self.gf_data_directory.joinpath('asset', 'avgtxt')
+        if not avg_txt_dir.exists():
+            _warning(f"Directory not found: {avg_txt_dir}")
+            return
+
+        # Ищем .txt файлы в новой структуре
+        for file in avg_txt_dir.glob('**/*.txt'):
+            rel_path = file.relative_to(avg_txt_dir)
+            name = str(rel_path)
+
             if name not in self.extracted:
-                _warning('filling in %s', name)
-                path = self.destination.joinpath(rel)
-                path.parent.mkdir(exist_ok=True)
-                with path.open('w') as f:
-                    with file.open() as content:
-                        f.write(self._decode(content.read(), name) or '')
-                self.extracted[name] = path
+                _warning('Adding missing file: %s', name)
+                dest_path = self.destination.joinpath(rel_path)
+                dest_path.parent.mkdir(parents=True, exist_ok=True)
+
+                with file.open('r', encoding='utf-8') as src_file:
+                    content = src_file.read()
+                    decoded_content = self._decode(content, name) or ''
+
+                with dest_path.open('w', encoding='utf-8') as dest_file:
+                    dest_file.write(decoded_content)
+
+                self.extracted[name] = dest_path
 
     def save(self):
         path = self.destination.joinpath('stories.json')
