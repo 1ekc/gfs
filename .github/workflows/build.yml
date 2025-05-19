@@ -16,12 +16,12 @@ jobs:
           submodules: 'recursive'
           #token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Checkout fix-logging branch
-        run: |
-          cd unpack/downloader
-          git fetch origin fix-logging
-          git checkout fix-logging --force
-          cd ../..
+#      - name: Checkout fix-logging branch
+#        run: |
+#          cd unpack/downloader
+#          git fetch origin fix-logging
+#          git checkout fix-logging --force
+#          cd ../..
       - name: Log Disk Space
         run: df -h
       - name: Free Disk Space
