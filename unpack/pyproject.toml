@@ -12,7 +12,7 @@ dependencies = [
     "hjson>=3.1.0",
     "pillow>=10.0.0",
 ]
-requires-python = "=3.11"
+requires-python = ">=3.11"
 readme = "README.md"
 license = {text = "MIT"}
 
