@@ -71,8 +71,9 @@ jobs:
         run: |
           cd unpack
           source .venv/bin/activate
-          # Патчим скрипт чтобы избежать ошибок с логгером
-          sed -i "s/setup_logging(/setup_logging(config_path='logger_tt\/log_config.json', use_multiprocessing=False, /" downloader/downloader.py
+
+          # Исправляем вызов setup_logging в downloader.py
+          sed -i "s/setup_logging(config_path=.*)/setup_logging(config_path='logger_tt\/log_config.json', use_multiprocessing=False)/" downloader/downloader.py
 
           mkdir -p downloader/resdata
           cp gf-data-ch/resdata_no_hash.json downloader/resdata/ch_resdata.json
