@@ -48,7 +48,7 @@ class BackgroundCollection:
         self.extracted = self.extract()
 
     def _extract_bg_profiles(self) -> list[str]:
-        content = utils.read_text_asset(self.profile_asset, 'assets/resources/dabao/avgtxt/profiles.txt')
+        content = utils.read_text_asset(self.profile_asset, 'asset/avgtxt/profiles.txt')
         return [l.strip() for l in content.split('\n')]
 
     def _save_image(self, extracted: dict[str, pathlib.Path], name: str, image: Sprite | Texture2D):
