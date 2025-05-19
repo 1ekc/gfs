@@ -61,6 +61,14 @@ jobs:
           pdm install
           source .venv/bin/activate
           pip install -r downloader/requirements.txt
+      - name: Apply logging fix
+        run: |
+          cd unpack/downloader
+          git fetch origin fix-logging
+          git checkout fix-logging
+          cd ../..
+          git add unpack/downloader
+          git commit -m "Update submodule to logging fix" || echo "No changes"
       - name: Download Resources
         run: |
           cd unpack
