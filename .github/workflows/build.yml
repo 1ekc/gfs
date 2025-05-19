@@ -24,14 +24,25 @@ jobs:
           swap-storage: false
       - name: Install Dependencies
         run: |
+          # Установка системных зависимостей
           sudo apt install ffmpeg pngquant imagemagick libfuse2
+
+          # Установка Python-зависимостей
+          python -m pip install --upgrade pip
+          pip install pyjson5 pillow
+
+          # Установка vgmstream
           wget https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-linux-cli.tar.gz
           tar -zxf vgmstream-linux-cli.tar.gz
           mkdir bin
           mv vgmstream-cli bin
+
+          # Установка ImageMagick
           wget https://imagemagick.org/archive/binaries/magick
           mv magick bin
           chmod a+x bin/*
+
+          # Добавление в PATH
           echo "${PWD}/bin" >> $GITHUB_PATH
       - name: Restore Cached Resources
         id: restore-gf-downloader-resources
