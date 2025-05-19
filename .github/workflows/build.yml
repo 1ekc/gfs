@@ -56,24 +56,35 @@ jobs:
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
 
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4
+
       - name: Setup Python Environment
         run: |
           cd unpack
+          # Устанавливаем зависимости через PDM
           pdm install
-          source .venv/bin/activate
-          # Устанавливаем дополнительные зависимости
+
+          # Если gf_utils - это отдельный пакет, устанавливаем его явно
+          pip install git+https://github.com/gf-data-tools/gf-utils.git  # Укажите правильный URL
+
+          # Альтернативно, если пакет локальный
+          pip install ./path/to/gf_utils  # Укажите правильный путь
+
+          # Устанавливаем остальные зависимости
           pip install pyjson5 pillow
-          # Создаём минимальный конфиг для логгера
+
+          # Создаем минимальный конфиг логгера
           mkdir -p downloader/logger_tt
-          echo '{"version":1,"disable_existing_loggers":false,"handlers":{"console":{"class":"logging.StreamHandler"}},"root":{"handlers":["console"],"level":"INFO"}}' > downloader/logger_tt/log_config.json
+          echo '{"version":1,"disable_existing_loggers":false}' > downloader/logger_tt/log_config.json
 
       - name: Download Resources
         run: |
           cd unpack
           source .venv/bin/activate
 
-          # Исправляем вызов setup_logging в downloader.py
-          sed -i "s/setup_logging(config_path=.*)/setup_logging(config_path='logger_tt\/log_config.json', use_multiprocessing=False)/" downloader/downloader.py
+          # Убедимся, что gf_utils доступен в PYTHONPATH
+          export PYTHONPATH="${PYTHONPATH}:${PWD}"
 
           mkdir -p downloader/resdata
           cp gf-data-ch/resdata_no_hash.json downloader/resdata/ch_resdata.json
