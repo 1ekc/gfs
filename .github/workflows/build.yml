@@ -77,6 +77,18 @@ jobs:
 #          cd ../..
 #          git add unpack/downloader
 #          git commit -m "Update submodule to logging fix" || echo "No changes"
+      - name: Fix logging issues
+        run: |
+          cd unpack/downloader
+        # Вариант 1 - замена на setup_logging
+          sed -i "s/setup_mp_logging()/setup_logging(config_path='logger_tt\/log_config.json', use_multiprocessing=False)/" downloader.py
+
+        # Вариант 2 - простой logging (раскомментируйте если вариант 1 не работает)
+        # sed -i "s/setup_mp_logging()/import logging; logging.basicConfig(level=logging.INFO)/" downloader.py
+
+        # Создаем минимальный конфиг если его нет
+          mkdir -p logger_tt
+          echo '{"version":1,"disable_existing_loggers":false}' > logger_tt/log_config.json
       - name: Download Resources
         run: |
           cd unpack
