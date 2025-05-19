@@ -2,16 +2,17 @@
 name = "gfUnpack"
 version = "0.1.0"
 description = "Unpacks character sprites from gf as well as their path id indices."
-authors = [
-    {name = "gudzpoz", email = "gudzpoz@live.com"},
-]
+#authors = [
+    #{name = "gudzpoz", email = "gudzpoz@live.com"},
+#]
 dependencies = [
     "UnityPy>=1.10.3",
     "tqdm>=4.66.1",
     "pip>=23.2.1",
     "hjson>=3.1.0",
+    "pillow>=10.0.0",
 ]
-requires-python = ">=3.11"
+requires-python = "=3.11"
 readme = "README.md"
 license = {text = "MIT"}
 
