@@ -14,11 +14,14 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}  # Для доступа к подмодулям
-      - name: Verify Submodules
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Checkout fix-logging branch
         run: |
-          git submodule status
-          ls -la unpack/downloader
+          cd unpack/downloader
+          git fetch origin fix-logging
+          git checkout fix-logging --force
+          cd ../..
       - name: Log Disk Space
         run: df -h
       - name: Free Disk Space
