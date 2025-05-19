@@ -55,16 +55,25 @@ jobs:
           key: gf-downloader-resources
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
+
       - name: Setup Python Environment
         run: |
           cd unpack
           pdm install
           source .venv/bin/activate
-          pip install -r downloader/requirements.txt
+          # Устанавливаем дополнительные зависимости
+          pip install pyjson5 pillow
+          # Создаём минимальный конфиг для логгера
+          mkdir -p downloader/logger_tt
+          echo '{"version":1,"disable_existing_loggers":false,"handlers":{"console":{"class":"logging.StreamHandler"}},"root":{"handlers":["console"],"level":"INFO"}}' > downloader/logger_tt/log_config.json
+
       - name: Download Resources
         run: |
           cd unpack
           source .venv/bin/activate
+          # Патчим скрипт чтобы избежать ошибок с логгером
+          sed -i "s/setup_logging(/setup_logging(config_path='logger_tt\/log_config.json', use_multiprocessing=False, /" downloader/downloader.py
+
           mkdir -p downloader/resdata
           cp gf-data-ch/resdata_no_hash.json downloader/resdata/ch_resdata.json
           cd downloader
