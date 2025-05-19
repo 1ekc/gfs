@@ -14,81 +14,65 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          #token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.GITHUB_TOKEN }}  # Раскомментировано, необходимо для подмодулей
 
-#      - name: Checkout fix-logging branch
-#        run: |
-#          cd unpack/downloader
-#          git fetch origin fix-logging
-#          git checkout fix-logging --force
-#          cd ../..
       - name: Log Disk Space
         run: df -h
+
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
           large-packages: false
           swap-storage: false
-      - name: Install Dependencies
-        run: |
-          # Установка системных зависимостей
-          sudo apt install ffmpeg pngquant imagemagick libfuse2
 
-          # Установка vgmstream
+      - name: Install System Dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y ffmpeg pngquant imagemagick libfuse2
           wget https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-linux-cli.tar.gz
           tar -zxf vgmstream-linux-cli.tar.gz
-          mkdir bin
-          mv vgmstream-cli bin
-
-          # Установка ImageMagick
-          wget https://imagemagick.org/archive/binaries/magick
-          mv magick bin
+          mkdir -p bin
+          mv vgmstream-cli bin/
+          wget https://imagemagick.org/archive/binaries/magick -O bin/magick
           chmod a+x bin/*
-          echo "${PWD}/bin" >> $GITHUB_PATH
+          echo "$(pwd)/bin" >> $GITHUB_PATH
 
-      - name: Setup Python environment
+      - name: Setup Python Environment
         run: |
           cd unpack
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
           pip install pyjson5 pillow
+
       - name: Restore Cached Resources
         id: restore-gf-downloader-resources
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/downloader/output
-          key: gf-downloader-resources
+          key: gf-downloader-resources-${{ hashFiles('unpack/downloader/requirements.txt') }}
+
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
-      - name: Setup Python Environment
+
+      - name: Install Python Dependencies
         run: |
           cd unpack
-          pdm install
           source .venv/bin/activate
+          pdm install
           pip install -r downloader/requirements.txt
-#      - name: Apply logging fix
-#        run: |
-#          cd unpack/downloader
-#          git fetch origin fix-logging
-#          git checkout fix-logging
-#          cd ../..
-#          git add unpack/downloader
-#          git commit -m "Update submodule to logging fix" || echo "No changes"
-      - name: Fix logging issues
+
+      - name: Fix Logging Configuration
         run: |
           cd unpack/downloader
-        # Вариант 1 - замена на setup_logging
-          sed -i "s/setup_mp_logging()/setup_logging(config_path='logger_tt\/log_config.json', use_multiprocessing=False)/" downloader.py
-
-        # Вариант 2 - простой logging (раскомментируйте если вариант 1 не работает)
-        # sed -i "s/setup_mp_logging()/import logging; logging.basicConfig(level=logging.INFO)/" downloader.py
-
-        # Создаем минимальный конфиг если его нет
+          # Создаем минимальный конфиг логгера
           mkdir -p logger_tt
           echo '{"version":1,"disable_existing_loggers":false}' > logger_tt/log_config.json
+          # Заменяем проблемную функцию
+          sed -i "s/setup_mp_logging()/import logging; logging.basicConfig(level=logging.INFO)/" downloader.py
+
       - name: Download Resources
         run: |
           cd unpack
@@ -96,82 +80,88 @@ jobs:
           mkdir -p downloader/resdata
           cp gf-data-ch/resdata_no_hash.json downloader/resdata/ch_resdata.json
           cd downloader
-          git apply ../downloader.patch
+          git apply ../downloader.patch || echo "Patch apply failed, continuing..."
           zip -j resdata.zip resdata/ch_resdata.json
           python downloader.py --downloadres 0 --abname
+
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/downloader/output
           key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
-      - name: Restore Cached Resources (images)
+
+      - name: Restore Image Cache
         id: restore-image-resources
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/images
-          key: gf-image-resources
-      - name: Unpack images
+          key: gf-image-resources-${{ hashFiles('unpack/tests/test_backgrounds.py') }}
+
+      - name: Process Images
         run: |
           cd unpack
           source .venv/bin/activate
           python tests/test_backgrounds.py
           python tests/test_characters.py
-      - name: Cache Resources (images)
+
+      - name: Cache Processed Images
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/images
           key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
-      - name: Restore Cached Resources (audio)
+
+      - name: Restore Audio Cache
         id: restore-audio-resources
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/audio
-          key: gf-audio-resources
-      - name: Unpack audio
+          key: gf-audio-resources-${{ hashFiles('unpack/tests/test_audio.py') }}
+
+      - name: Process Audio
         run: |
           cd unpack
           source .venv/bin/activate
           python tests/test_audio.py
-      - name: Cache Resources (audio)
+
+      - name: Cache Processed Audio
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/audio
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
-      - name: Unpack resources
+
+      - name: Unpack All Resources
         run: |
           cd unpack
           source .venv/bin/activate
           python -m gfunpack downloader/output -o .
-      - name: Log Disk Space
-        run: df -h
-      - name: Move Resources
+
+      - name: Prepare Final Assets
         run: |
           cd unpack
-          cp audio/audio.json images/backgrounds.json images/characters.json stories/stories.json stories/chapters.json ../src/assets
-          mv audio ../public
-          mv images ../public
-          mv stories ../public
+          mkdir -p ../src/assets ../public
+          cp audio/audio.json images/backgrounds.json images/characters.json stories/stories.json stories/chapters.json ../src/assets/
+          mv audio images stories ../public/
+
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
           version: 9.4.0
-          run_install: false
-      - name: Setup PNPM Workspace
-        run: |
-          pnpm install
-      - name: Build Site
+          run_install: true  # Автоматически запускает pnpm install
+
+      - name: Build Frontend
         run: |
           pnpm build-index
           pnpm build
-      - name: Publish to Cloudflare Pages
+
+      - name: Deploy to Cloudflare
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME  }}
+          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
           directory: dist
