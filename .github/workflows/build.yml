@@ -75,26 +75,35 @@ jobs:
 
       - name: Download Resources from Google Cloud
         env:
-          GCS_BUCKET: GFL_RESDATA  # Исправлено название бакета
-          GFL_RESDATA: ${{ secrets.GFL_RESDATA }}  # Новое название секрета
+          GCS_BUCKET: GFL_RESDATA
+          GFL_RESDATA: ${{ secrets.GFL_RESDATA }}
         run: |
-          cd unpack
+          # Переходим в директорию проекта
+          cd unpack/downloader
+
+          # Создаем и активируем venv
+          python -m venv .venv
           source .venv/bin/activate
 
-          # Установка зависимостей
+          # Устанавливаем зависимости
+          echo "Installing dependencies..."
+          pip install --upgrade pip
           pip install -r requirements.txt
+
+          # Создаем необходимые директории
+          mkdir -p ../resdata
 
           # Скачивание us_resdata.json
           echo "Downloading metadata from GCS..."
           python downloader.py
 
           # Проверка результата
-          if [ ! -f "resdata/us_resdata.json" ]; then
-            echo "Error: us_resdata.json not downloaded!"
+          if [ ! -f "../resdata/us_resdata.json" ]; then
+            echo "::error::us_resdata.json not downloaded!"
             exit 1
           fi
 
-          echo "Resources downloaded successfully"
+          echo "::notice::Resources downloaded successfully"
 
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
