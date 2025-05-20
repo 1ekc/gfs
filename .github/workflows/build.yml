@@ -80,16 +80,23 @@ jobs:
           # Переходим в нужную директорию
           cd unpack/downloader
 
-          # Проверяем наличие config.json5
-          echo "Проверяем структуру файлов:"
+          # Проверяем содержимое текущей папки
+          echo "Текущая директория: $(pwd)"
+          echo "Содержимое папки:"
           ls -la
 
-          # Явно копируем config.json5 из репозитория
-          cp ../../../config.json5 ./config.json5
+          # Проверяем наличие config.json5
+          if [ ! -f "config.json5" ]; then
+            echo "::error::Файл config.json5 не найден в unpack/downloader/"
+            exit 1
+          fi
 
-          # Проверяем что файл скопировался
-          echo "Содержимое config.json5:"
-          cat config.json5
+          # Создаем символическую ссылку на config.json
+          ln -sf config.json5 config.json
+
+          # Проверяем создание ссылки
+          echo "Проверка ссылки:"
+          ls -la config.json
 
           # Создаем необходимые директории
           mkdir -p output resdata
