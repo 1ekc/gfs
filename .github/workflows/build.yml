@@ -75,12 +75,11 @@ jobs:
 
       - name: Download Resources
         env:
-          GD_DATA: ${{ secrets.GD_DATA }}  # Используем правильное имя секрета
+          GD_DATA: ${{ secrets.GD_DATA }}  # JSON сервисного аккаунта
         run: |
-          # Переходим в директорию скрипта
           cd unpack/downloader
 
-          # Проверяем наличие config.json5
+          # Проверка наличия config.json5
           if [ ! -f "config.json5" ]; then
             echo "::error::Файл config.json5 не найден!"
             exit 1
@@ -89,23 +88,15 @@ jobs:
           # Создаем символическую ссылку
           ln -sf config.json5 config.json
 
-          # Проверяем переменные окружения
-          echo "Проверка GD_DATA:"
-          if [ -z "$GD_DATA" ]; then
-            echo "::error::GD_DATA не установлен!"
-            exit 1
-          fi
-          echo "GD_DATA присутствует (длина: ${#GD_DATA} символов)"
-
-          # Устанавливаем зависимости
+          # Установка зависимостей
           pip install -r requirements.txt
 
-          # Запускаем скрипт
-          python downloader.py
+          # Запуск скрипта
+          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
-          # Проверяем результат
+          # Проверка результата
           if [ ! -f "resdata/us_resdata.json" ]; then
-            echo "::error::Файл us_resdata.json не загружен"
+            echo "::error::Ошибка загрузки файлов"
             exit 1
           fi
           echo "::notice::Загрузка завершена успешно"
