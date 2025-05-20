@@ -80,16 +80,16 @@ jobs:
           # Переходим в нужную директорию
           cd unpack/downloader
 
-          # Проверяем наличие config.json
+          # Проверяем наличие config.json5
           echo "Проверяем структуру файлов:"
           ls -la
 
-          # Явно копируем config.json из репозитория
-          cp ../../../config.json ./config.json
+          # Явно копируем config.json5 из репозитория
+          cp ../../../config.json5 ./config.json5
 
           # Проверяем что файл скопировался
-          echo "Содержимое config.json:"
-          cat config.json
+          echo "Содержимое config.json5:"
+          cat config.json5
 
           # Создаем необходимые директории
           mkdir -p output resdata
