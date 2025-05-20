@@ -77,7 +77,19 @@ jobs:
         env:
           GFL_RESDATA: ${{ secrets.GFL_RESDATA }}
         run: |
+          # Переходим в нужную директорию
           cd unpack/downloader
+
+          # Проверяем наличие config.json
+          echo "Проверяем структуру файлов:"
+          ls -la
+
+          # Явно копируем config.json из репозитория
+          cp ../../../config.json ./config.json
+
+          # Проверяем что файл скопировался
+          echo "Содержимое config.json:"
+          cat config.json
 
           # Создаем необходимые директории
           mkdir -p output resdata
