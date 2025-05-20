@@ -75,28 +75,17 @@ jobs:
 
       - name: Download Resources
         env:
-          GFL_RESDATA: ${{ secrets.GFL_RESDATA }}
+          GD_DATA: ${{ secrets.GFL_RESDATA }}  # Исправляем имя переменной
         run: |
           # Переходим в нужную директорию
           cd unpack/downloader
 
-          # Проверяем содержимое текущей папки
-          echo "Текущая директория: $(pwd)"
-          echo "Содержимое папки:"
-          ls -la
+          # Проверяем переменные окружения
+          echo "Проверка переменных:"
+          echo "GD_DATA: ${#GD_DATA}"  # Выводим длину (без содержимого)
 
-          # Проверяем наличие config.json5
-          if [ ! -f "config.json5" ]; then
-            echo "::error::Файл config.json5 не найден в unpack/downloader/"
-            exit 1
-          fi
-
-          # Создаем символическую ссылку на config.json
+          # Создаем символическую ссылку
           ln -sf config.json5 config.json
-
-          # Проверяем создание ссылки
-          echo "Проверка ссылки:"
-          ls -la config.json
 
           # Создаем необходимые директории
           mkdir -p output resdata
@@ -104,12 +93,13 @@ jobs:
           # Устанавливаем зависимости
           pip install -r requirements.txt
 
-          # Запускаем скрипт
-          python downloader.py
+          # Запускаем скрипт с выводом логов
+          python downloader.py 2>&1 | tee output.log
 
           # Проверяем результат
           if [ ! -f "resdata/us_resdata.json" ]; then
             echo "::error::Не удалось загрузить us_resdata.json"
+            cat output.log
             exit 1
           fi
           echo "::notice::Ресурсы успешно загружены"
