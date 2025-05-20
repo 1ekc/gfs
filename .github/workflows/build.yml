@@ -75,34 +75,40 @@ jobs:
 
       - name: Download Resources
         env:
-          GD_DATA: ${{ secrets.GFL_RESDATA }}  # Исправляем имя переменной
+          GD_DATA: ${{ secrets.GD_DATA }}  # Используем правильное имя секрета
         run: |
-          # Переходим в нужную директорию
+          # Переходим в директорию скрипта
           cd unpack/downloader
 
-          # Проверяем переменные окружения
-          echo "Проверка переменных:"
-          echo "GD_DATA: ${#GD_DATA}"  # Выводим длину (без содержимого)
+          # Проверяем наличие config.json5
+          if [ ! -f "config.json5" ]; then
+            echo "::error::Файл config.json5 не найден!"
+            exit 1
+          fi
 
           # Создаем символическую ссылку
           ln -sf config.json5 config.json
 
-          # Создаем необходимые директории
-          mkdir -p output resdata
+          # Проверяем переменные окружения
+          echo "Проверка GD_DATA:"
+          if [ -z "$GD_DATA" ]; then
+            echo "::error::GD_DATA не установлен!"
+            exit 1
+          fi
+          echo "GD_DATA присутствует (длина: ${#GD_DATA} символов)"
 
           # Устанавливаем зависимости
           pip install -r requirements.txt
 
-          # Запускаем скрипт с выводом логов
-          python downloader.py 2>&1 | tee output.log
+          # Запускаем скрипт
+          python downloader.py
 
           # Проверяем результат
           if [ ! -f "resdata/us_resdata.json" ]; then
-            echo "::error::Не удалось загрузить us_resdata.json"
-            cat output.log
+            echo "::error::Файл us_resdata.json не загружен"
             exit 1
           fi
-          echo "::notice::Ресурсы успешно загружены"
+          echo "::notice::Загрузка завершена успешно"
 
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
