@@ -73,37 +73,27 @@ jobs:
           # Заменяем проблемную функцию
           sed -i "s/setup_mp_logging()/import logging; logging.basicConfig(level=logging.INFO)/" downloader.py
 
-      - name: Download Resources from Google Cloud
+      - name: Download Resources
         env:
-          GCS_BUCKET: GFL_RESDATA
           GFL_RESDATA: ${{ secrets.GFL_RESDATA }}
         run: |
-          # Переходим в директорию проекта
           cd unpack/downloader
 
-          # Создаем и активируем venv
-          python -m venv .venv
-          source .venv/bin/activate
+          # Создаем необходимые директории
+          mkdir -p output resdata
 
           # Устанавливаем зависимости
-          echo "Installing dependencies..."
-          pip install --upgrade pip
           pip install -r requirements.txt
 
-          # Создаем необходимые директории
-          mkdir -p ../resdata
-
-          # Скачивание us_resdata.json
-          echo "Downloading metadata from GCS..."
+          # Запускаем скрипт
           python downloader.py
 
-          # Проверка результата
-          if [ ! -f "../resdata/us_resdata.json" ]; then
-            echo "::error::us_resdata.json not downloaded!"
+          # Проверяем результат
+          if [ ! -f "resdata/us_resdata.json" ]; then
+            echo "::error::Не удалось загрузить us_resdata.json"
             exit 1
           fi
-
-          echo "::notice::Resources downloaded successfully"
+          echo "::notice::Ресурсы успешно загружены"
 
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
