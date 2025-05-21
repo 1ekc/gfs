@@ -27,18 +27,19 @@ _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png
 class BackgroundCollection:
     def __init__(
             self,
-            directory: str,  # Изменено с input_dir на directory
-            destination: str,  # Изменено с output_dir на destination
+            directory: str,
+            destination: str,
             pngquant: bool = False,
             force: bool = False,
-            concurrency: Optional[int] = None  # Изменено с max_workers
+            concurrency: Optional[int] = None
     ):
         self.directory = pathlib.Path(directory)
-        self.destination = pathlib.Path(destination).joinpath('background')  # Соответствует тесту
+        self.destination = pathlib.Path(destination).joinpath('background')
         self.pngquant = pngquant
         self.force = force
         self.concurrency = concurrency or max(1, cpu_count() - 1)
         self.progress = Manager().dict()
+        self.extracted = {}  # Добавляем атрибут extracted
 
         # Проверка директорий
         if not self.directory.exists():
@@ -125,7 +126,7 @@ class BackgroundCollection:
         return {k: v for k, v in results if v is not None}
 
     def extract(self) -> Dict[int, Optional[pathlib.Path]]:
-        """Совместимый с тестами метод extract"""
+        """Извлечение всех фонов"""
         bg_profiles = self._extract_bg_profiles()
         pics = self._extract_bg_pics()
 
@@ -144,10 +145,14 @@ class BackgroundCollection:
         for path in set(p.resolve() for p in pics.values()) - set(matched):
             merged[-len(merged)] = path
 
+        self.extracted = merged  # Сохраняем результат в атрибут
         return merged
 
     def save(self) -> pathlib.Path:
         """Сохранение результатов в JSON"""
+        if not hasattr(self, 'extracted') or not self.extracted:
+            self.extract()  # Если extracted нет, вызываем extract()
+
         result = {
             k: "" if v is None else str(v.relative_to(self.destination.parent))
             for k, v in self.extracted.items()
@@ -160,7 +165,6 @@ class BackgroundCollection:
         return path
 
 
-# Добавим совместимость с __main__.py
 if __name__ == "__main__":
     processor = BackgroundCollection(
         directory="downloader/output",
