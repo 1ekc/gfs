@@ -10,7 +10,12 @@ def check_cache(cache_dir: Path, required_files: List[str]) -> bool:
     return True
 
 def test_backgrounds():
-    bg = backgrounds.BackgroundCollection('downloader/output', 'images', pngquant=True)
+    bg = backgrounds.BackgroundCollection(
+        input_path='downloader/output',
+        output_path='images',
+        pngquant=True,
+        concurrency=4  # Явно указываем уровень параллелизма
+    )
     bg.save()
 
 if __name__ == '__main__':

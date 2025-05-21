@@ -4,6 +4,7 @@ import pathlib
 import re
 import sys
 from multiprocessing import Pool, cpu_count, Manager
+from pathlib import Path
 from typing import Dict, List, Optional, Union, Tuple
 
 import UnityPy
@@ -31,10 +32,18 @@ _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png
 
 
 class BackgroundCollection:
-    def __init__(self, directory: str, destination: str, pngquant: bool = False):
+    def __init__(self, directory: str, destination: str, pngquant: bool = False, concurrency: int = 4):
+        """
+        Args:
+            directory: Путь к директории с ресурсами
+            destination: Путь для сохранения результатов
+            pngquant: Использовать pngquant для оптимизации
+            concurrency: Количество параллельных процессов (по умолчанию 4)
+        """
         self.directory = pathlib.Path(directory)
         self.destination = pathlib.Path(destination)
         self.pngquant = utils.test_pngquant(pngquant)
+        self.concurrency = concurrency  # Используем переданный параметр
         self.extracted = {}
 
         # Проверка директорий
