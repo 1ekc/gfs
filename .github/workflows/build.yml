@@ -9,7 +9,8 @@ permissions:
 
 jobs:
   documentation:
-    runs-on: ubuntu-latest
+    #runs-on: ubuntu-latest
+    runs-on: ubuntu-22.04-large
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,11 +49,14 @@ jobs:
 
       - name: Restore Cached Resources
         id: restore-gf-downloader-resources
-        uses: actions/cache/restore@v4
+        uses: actions/cache@v4
         with:
           path: |
             unpack/downloader/output
-          key: gf-downloader-resources-${{ hashFiles('unpack/downloader/requirements.txt') }}
+            unpack/downloader/resdata
+          key: ${{ runner.os }}-gf-resources-${{ hashFiles('unpack/downloader/config.json5') }}
+          restore-keys: |
+            ${{ runner.os }}-gf-resources-
 
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
@@ -74,6 +78,7 @@ jobs:
           sed -i "s/setup_mp_logging()/import logging; logging.basicConfig(level=logging.INFO)/" downloader.py
 
       - name: Download Resources
+        if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
           GD_DATA: ${{ secrets.GD_DATA }}  # JSON сервисного аккаунта
         run: |
@@ -124,11 +129,13 @@ jobs:
           python tests/test_characters.py
 
       - name: Cache Processed Images
+        if: always() && steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
-            unpack/images
-          key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
+            unpack/downloader/output
+            unpack/downloader/resdata
+          key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
 
       - name: Restore Audio Cache
         id: restore-audio-resources
