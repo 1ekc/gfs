@@ -26,12 +26,12 @@ _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png
 
 class BackgroundProcessor:
     def __init__(
-            self,
-            input_dir: pathlib.Path,
-            output_dir: pathlib.Path,
-            pngquant: bool = False,
-            force: bool = False,
-            max_workers: Optional[int] = None
+        self,
+        input_dir: pathlib.Path,
+        output_dir: pathlib.Path,
+        pngquant: bool = False,
+        force: bool = False,
+        max_workers: Optional[int] = None
     ):
         self.input_dir = input_dir
         self.output_dir = output_dir
@@ -61,31 +61,29 @@ class BackgroundProcessor:
             logger.error(f"Error processing {file_path.name}: {str(e)}")
         return results
 
-    def save_image(self, args: Tuple[str, Union[Sprite, Texture2D], pbar_pos: int) -> Optional[
-        Tuple[str, pathlib.Path]]:
+    def save_image(self, args: Tuple[Tuple[str, Union[Sprite, Texture2D]], int]) -> Optional[Tuple[str, pathlib.Path]]:
         """Сохранение одного изображения с обработкой ошибок"""
+        (name, image), pbar_pos = args
+        try:
+            output_path = self.output_dir / f"{name}.png"
 
-    name, image = args
-    try:
-        output_path = self.output_dir / f"{name}.png"
+            # Пропуск существующих файлов
+            if not self.force and output_path.exists():
+                self.progress[pbar_pos] = True
+                return (name, output_path)
 
-        # Пропуск существующих файлов
-        if not self.force and output_path.exists():
-            self.progress[pbar_pos] = True
-            return (name, output_path)
-
-        # Сохранение изображения
-        if isinstance(image, (Sprite, Texture2D)):
-            image.image.save(output_path)
-            if self.pngquant:
-                # Здесь должна быть ваша реализация pngquant
-                pass
-            self.progress[pbar_pos] = True
-            return (name, output_path)
-    except Exception as e:
-        logger.error(f"Failed to save {name}: {str(e)}")
-        self.progress[pbar_pos] = False
-    return None
+            # Сохранение изображения
+            if isinstance(image, (Sprite, Texture2D)):
+                image.image.save(output_path)
+                if self.pngquant:
+                    # Здесь должна быть ваша реализация pngquant
+                    pass
+                self.progress[pbar_pos] = True
+                return (name, output_path)
+        except Exception as e:
+            logger.error(f"Failed to save {name}: {str(e)}")
+            self.progress[pbar_pos] = False
+        return None
 
     def process_all(self) -> Dict[int, Optional[pathlib.Path]]:
         """Основной метод обработки"""
@@ -105,9 +103,9 @@ class BackgroundProcessor:
             all_images = {}
             with Pool(processes=self.max_workers) as pool:
                 for result in tqdm(
-                        pool.imap_unordered(self.process_asset_file, resource_files),
-                        total=len(resource_files),
-                        desc="Processing AB files"
+                    pool.imap_unordered(self.process_asset_file, resource_files),
+                    total=len(resource_files),
+                    desc="Processing AB files"
                 ):
                     all_images.update(result)
 
@@ -119,7 +117,7 @@ class BackgroundProcessor:
                 results = list(tqdm(
                     pool.starmap(
                         self.save_image,
-                        [(task, i) for i, task in enumerate(tasks)]
+                        [((task), i) for i, task in enumerate(tasks)]
                     ),
                     total=len(tasks),
                     desc="Saving images"
@@ -142,8 +140,7 @@ class BackgroundProcessor:
             logger.error(f"Failed to load profiles: {str(e)}")
             raise
 
-    def _match_profiles(self, profiles: List[str], images: Dict[str, pathlib.Path]) -> Dict[
-        int, Optional[pathlib.Path]]:
+    def _match_profiles(self, profiles: List[str], images: Dict[str, pathlib.Path]) -> Dict[int, Optional[pathlib.Path]]:
         """Сопоставление профилей с изображениями"""
         result = {}
         matched = set()

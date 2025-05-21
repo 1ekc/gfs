@@ -47,13 +47,13 @@ jobs:
           pip install pyjson5 pillow
 
       - name: Restore Cached Resources
-        id: restore-gf-downloader-resources
+        id: restore-resources
         uses: actions/cache@v4
         with:
           path: |
             unpack/downloader/output
             unpack/downloader/resdata
-          key: ${{ runner.os }}-gf-resources-${{ hashFiles('unpack/downloader/config.json5') }}
+          key: ${{ runner.os }}-gf-resources-${{ hashFiles('unpack/downloader/config.json5', 'unpack/downloader/requirements.txt') }}
           restore-keys: |
             ${{ runner.os }}-gf-resources-
 
@@ -106,11 +106,13 @@ jobs:
           echo "::notice::Загрузка завершена успешно"
 
       - name: Cache Downloaded Resources
+        if: always()  # Сохраняем кэш в любом случае
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/downloader/output
-          key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
+            unpack/downloader/resdata
+          key: ${{ steps.restore-resources.outputs.cache-primary-key }}
 
       - name: Restore Image Cache
         id: restore-image-resources
