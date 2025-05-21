@@ -24,28 +24,40 @@ logger = logging.getLogger('gfunpack.backgrounds')
 _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png$')
 
 
-class BackgroundProcessor:
+class BackgroundCollection:
     def __init__(
-        self,
-        input_dir: pathlib.Path,
-        output_dir: pathlib.Path,
-        pngquant: bool = False,
-        force: bool = False,
-        max_workers: Optional[int] = None
+            self,
+            directory: str,  # Изменено с input_dir на directory
+            destination: str,  # Изменено с output_dir на destination
+            pngquant: bool = False,
+            force: bool = False,
+            concurrency: Optional[int] = None  # Изменено с max_workers
     ):
-        self.input_dir = input_dir
-        self.output_dir = output_dir
+        self.directory = pathlib.Path(directory)
+        self.destination = pathlib.Path(destination).joinpath('background')  # Соответствует тесту
         self.pngquant = pngquant
         self.force = force
-        self.max_workers = max_workers or max(1, cpu_count() - 1)
+        self.concurrency = concurrency or max(1, cpu_count() - 1)
         self.progress = Manager().dict()
 
         # Проверка директорий
-        if not self.input_dir.exists():
-            raise FileNotFoundError(f"Input directory not found: {self.input_dir}")
-        self.output_dir.mkdir(parents=True, exist_ok=True)
+        if not self.directory.exists():
+            raise FileNotFoundError(f"Input directory not found: {self.directory}")
+        self.destination.mkdir(parents=True, exist_ok=True)
 
-    def process_asset_file(self, file_path: pathlib.Path) -> Dict[str, Union[Sprite, Texture2D]]:
+    def _extract_bg_profiles(self) -> List[str]:
+        """Извлечение профилей фонов"""
+        try:
+            content = utils.read_text_asset(
+                self.directory / 'asset_textavg.ab',
+                'assets/resources/dabao/avgtxt/profiles.txt'
+            )
+            return [line.strip() for line in content.split('\n') if line.strip()]
+        except Exception as e:
+            logger.error(f"Failed to extract bg profiles: {str(e)}")
+            raise
+
+    def _process_asset_file(self, file_path: pathlib.Path) -> Dict[str, Union[Sprite, Texture2D]]:
         """Обработка одного .ab файла"""
         results = {}
         try:
@@ -61,18 +73,16 @@ class BackgroundProcessor:
             logger.error(f"Error processing {file_path.name}: {str(e)}")
         return results
 
-    def save_image(self, args: Tuple[Tuple[str, Union[Sprite, Texture2D]], int]) -> Optional[Tuple[str, pathlib.Path]]:
-        """Сохранение одного изображения с обработкой ошибок"""
+    def _save_image(self, args: Tuple[Tuple[str, Union[Sprite, Texture2D]], int]) -> Optional[Tuple[str, pathlib.Path]]:
+        """Сохранение одного изображения"""
         (name, image), pbar_pos = args
         try:
-            output_path = self.output_dir / f"{name}.png"
+            output_path = self.destination / f"{name}.png"
 
-            # Пропуск существующих файлов
             if not self.force and output_path.exists():
                 self.progress[pbar_pos] = True
                 return (name, output_path)
 
-            # Сохранение изображения
             if isinstance(image, (Sprite, Texture2D)):
                 image.image.save(output_path)
                 if self.pngquant:
@@ -85,113 +95,76 @@ class BackgroundProcessor:
             self.progress[pbar_pos] = False
         return None
 
-    def process_all(self) -> Dict[int, Optional[pathlib.Path]]:
-        """Основной метод обработки"""
-        try:
-            # 1. Загрузка профилей
-            profile_asset = self.input_dir / 'asset_textavg.ab'
-            profiles = self._load_profiles(profile_asset)
+    def _extract_bg_pics(self) -> Dict[str, pathlib.Path]:
+        """Основной метод извлечения изображений"""
+        extracted = {}
+        resource_files = list(self.directory.glob('resource_avgtexture*.ab'))
 
-            # 2. Поиск файлов ресурсов
-            resource_files = list(self.input_dir.glob('resource_avgtexture*.ab'))
-            if not resource_files:
-                raise FileNotFoundError("No resource files found")
+        with Pool(processes=self.concurrency) as pool:
+            results = list(tqdm(
+                pool.imap_unordered(self._process_asset_file, resource_files),
+                total=len(resource_files),
+                desc="Processing AB files"
+            ))
 
-            logger.info(f"Found {len(resource_files)} resource files to process")
+        all_images = {}
+        for result in results:
+            all_images.update(result)
 
-            # 3. Многопоточная обработка файлов
-            all_images = {}
-            with Pool(processes=self.max_workers) as pool:
-                for result in tqdm(
-                    pool.imap_unordered(self.process_asset_file, resource_files),
-                    total=len(resource_files),
-                    desc="Processing AB files"
-                ):
-                    all_images.update(result)
+        tasks = list(all_images.items())
+        with Pool(processes=self.concurrency) as pool:
+            results = list(tqdm(
+                pool.starmap(
+                    self._save_image,
+                    [((task), i) for i, task in enumerate(tasks)]
+                ),
+                total=len(tasks),
+                desc="Saving images"
+            ))
 
-            # 4. Многопроцессорное сохранение изображений
-            saved_images = {}
-            tasks = list(all_images.items())
+        return {k: v for k, v in results if v is not None}
 
-            with Pool(processes=self.max_workers) as pool:
-                results = list(tqdm(
-                    pool.starmap(
-                        self.save_image,
-                        [((task), i) for i, task in enumerate(tasks)]
-                    ),
-                    total=len(tasks),
-                    desc="Saving images"
-                ))
+    def extract(self) -> Dict[int, Optional[pathlib.Path]]:
+        """Совместимый с тестами метод extract"""
+        bg_profiles = self._extract_bg_profiles()
+        pics = self._extract_bg_pics()
 
-            # 5. Сопоставление результатов
-            saved_images = {k: v for k, v in results if v is not None}
-            return self._match_profiles(profiles, saved_images)
+        merged = {}
+        matched = []
 
-        except Exception as e:
-            logger.error(f"Processing failed: {str(e)}")
-            raise
-
-    def _load_profiles(self, profile_asset: pathlib.Path) -> List[str]:
-        """Загрузка профилей фонов"""
-        try:
-            # Ваша реализация чтения текстового ассета
-            pass
-        except Exception as e:
-            logger.error(f"Failed to load profiles: {str(e)}")
-            raise
-
-    def _match_profiles(self, profiles: List[str], images: Dict[str, pathlib.Path]) -> Dict[int, Optional[pathlib.Path]]:
-        """Сопоставление профилей с изображениями"""
-        result = {}
-        matched = set()
-
-        for idx, name in enumerate(profiles):
-            lower_name = name.lower()
-            if lower_name in images:
-                result[idx] = images[lower_name]
-                matched.add(images[lower_name].resolve())
+        for i, name in enumerate(bg_profiles):
+            match = pics.get(name.lower())
+            merged[i] = match
+            if match:
+                matched.append(match.resolve())
             else:
-                result[idx] = None
-                logger.warning(f"Profile {name} not found in images")
+                logger.warning(f'Background {name} not found')
 
         # Добавление ненайденных изображений
-        unmatched = [p for p in images.values() if p.resolve() not in matched]
-        for path in unmatched:
-            result[-len(result)] = path
+        for path in set(p.resolve() for p in pics.values()) - set(matched):
+            merged[-len(merged)] = path
 
-        return result
+        return merged
 
+    def save(self) -> pathlib.Path:
+        """Сохранение результатов в JSON"""
+        result = {
+            k: "" if v is None else str(v.relative_to(self.destination.parent))
+            for k, v in self.extracted.items()
+        }
 
-def main():
-    try:
-        logger.info("Starting background extraction")
+        path = self.destination.parent.joinpath('backgrounds.json')
+        with path.open('w', encoding='utf-8') as f:
+            json.dump(result, f, ensure_ascii=False, indent=2)
 
-        processor = BackgroundProcessor(
-            input_dir=pathlib.Path("downloader/output"),
-            output_dir=pathlib.Path("images/background"),
-            pngquant=True,
-            max_workers=4  # Оптимально для GitHub Actions
-        )
-
-        results = processor.process_all()
-
-        # Сохранение результатов
-        output_file = pathlib.Path("backgrounds.json")
-        with output_file.open('w', encoding='utf-8') as f:
-            json.dump(
-                {k: str(v) if v else "" for k, v in results.items()},
-                f,
-                ensure_ascii=False,
-                indent=2
-            )
-
-        logger.info(f"Successfully processed {len(results)} items")
-        return 0
-
-    except Exception as e:
-        logger.error(f"Fatal error: {str(e)}")
-        return 1
+        return path
 
 
+# Добавим совместимость с __main__.py
 if __name__ == "__main__":
-    sys.exit(main())
+    processor = BackgroundCollection(
+        directory="downloader/output",
+        destination="images",
+        pngquant=True
+    )
+    processor.save()
