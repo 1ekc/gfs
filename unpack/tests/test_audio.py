@@ -1,3 +1,5 @@
+from pathlib import Path
+from typing import List
 from gfunpack import audio
 
 def check_cache(cache_dir: Path, required_files: List[str]) -> bool:

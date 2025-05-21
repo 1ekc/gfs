@@ -88,9 +88,9 @@ jobs:
 
           ln -sf config.json5 config.json
           pip install -r requirements.txt
-          
-          # Добавлен --clear-cache при первом запуске
-          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --clear-cache
+#
+#          # Добавлен --clear-cache при первом запуске
+#          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --clear-cache
 
           if [ ! -f "resdata/us_resdata.json" ]; then
             echo "::error::Ошибка загрузки файлов"
