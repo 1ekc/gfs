@@ -1,26 +1,30 @@
 import argparse
+import json
 import logging
 import os
 import pathlib
 import re
 import subprocess
 import threading
-import typing
-from dataclasses import dataclass
 from pathlib import Path
+from typing import Dict, List, Tuple
 
 import tqdm
 import UnityPy
 from UnityPy.classes import Sprite, Texture2D
 
-_logger = logging.getLogger('gfunpack.characters')
-_info = _logger.info
-_warning = _logger.warning
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('character_unpack.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger(__name__)
 
 _character_file_regex = re.compile('^character_(.*)\\.ab$')
-
-# Эта часть нужна для специальной обработки альфа-каналов у некоторых персонажей
-# Она заменяет одни текстуры другими для правильного отображения
 _alpha_postfixes = {
     'ar18/AR18_N_1.png': 'ar18/AR18_N_0.png',
     'ar18/AR18_N_2.png': 'ar18/AR18_N_0.png',
@@ -30,32 +34,34 @@ _alpha_postfixes = {
 }
 
 
-@dataclass
-class SpriteDetails:
-    path: str
-    path_id: int
-    alpha_path_id: int
-    name: str
+def run_pngquant(image_path: Path):
+    """Запуск pngquant для оптимизации изображения"""
+    try:
+        subprocess.run(['pngquant', '--force', '--skip-if-larger', '--ext', '.png', str(image_path)],
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (FileNotFoundError, subprocess.CalledProcessError) as e:
+        logger.warning(f"Ошибка pngquant: {str(e)}")
 
 
 class CharacterCollection:
-    """Класс для обработки персонажей с поддержкой альфа-каналов"""
+    """Класс для обработки персонажей"""
 
-    CHUNK_SIZE = 10
-    SPRITE_CACHE = "characters.json"
+    CACHE_FILE = "characters.json"
+    CHUNK_SIZE = 5
 
-    def __init__(self, directory: str, destination: str, pngquant: bool = False,
-                 force: bool = False, concurrency: int = 8):
-        self.directory = Path(directory)
-        self.destination = Path(destination)
-        self.pngquant = utils.test_pngquant(pngquant)
-        self.force = force
+    def __init__(self, input_path: str, output_path: str, pngquant: bool = False,
+                 concurrency: int = 4, force: bool = False):
+        self.input_path = Path(input_path)
+        self.output_path = Path(output_path)
+        self.pngquant = pngquant
         self.concurrency = min(concurrency, cpu_count())
+        self.force = force
+        self.extracted = {}
         self._semaphore = threading.Semaphore(self.concurrency)
-        self.exported_images = {}
 
-        utils.check_directory(self.directory)
-        self.destination.mkdir(parents=True, exist_ok=True)
+        if not self.input_path.exists():
+            raise FileNotFoundError(f"Директория не найдена: {self.input_path}")
+        self.output_path.mkdir(parents=True, exist_ok=True)
 
     def _merge_alpha_channel(self, directory: Path, name: str, sprite: Texture2D, alpha_sprite: Texture2D):
         try:
@@ -67,14 +73,12 @@ class CharacterCollection:
 
             temp_files = []
             try:
-                # Создаем временные файлы
                 sprite_path = directory / f"{name}_temp.png"
                 alpha_path = directory / f"{name}_alpha_temp.png"
                 sprite.image.save(sprite_path)
                 alpha_sprite.image.save(alpha_path)
                 temp_files.extend([sprite_path, alpha_path])
 
-                # Объединяем альфа-каналы
                 subprocess.run([
                     'magick', sprite_path, alpha_path,
                     '-compose', 'copy-opacity', '-composite',
@@ -82,14 +86,14 @@ class CharacterCollection:
                 ], check=True)
 
                 if self.pngquant:
-                    utils.run_pngquant(image_path)
+                    run_pngquant(image_path)
 
                 return image_path
             finally:
                 for f in temp_files:
                     f.unlink(missing_ok=True)
         except Exception as e:
-            _warning(f"Ошибка объединения {name}: {str(e)}")
+            logger.error(f"Ошибка объединения {name}: {str(e)}")
             return None
 
     def _process_sprite_chunk(self, sprites: List[Tuple[str, int, Texture2D, Texture2D]]):
@@ -102,17 +106,16 @@ class CharacterCollection:
                     daemon=True
                 ).start()
 
-        # Ожидание завершения
         for _ in range(self.concurrency):
             self._semaphore.acquire()
 
     def _process_single_sprite(self, character: str, sprite_id: int,
                                sprite: Texture2D, alpha: Texture2D, bar: tqdm.tqdm):
         try:
-            char_dir = self.destination / character.lower()
+            char_dir = self.output_path / character.lower()
             result = self._merge_alpha_channel(char_dir, f"{sprite_id}", sprite, alpha)
             if result:
-                self.exported_images[f"{character}/{sprite_id}"] = str(result.relative_to(self.destination))
+                self.extracted[f"{character}/{sprite_id}"] = str(result.relative_to(self.output_path))
         finally:
             bar.update()
             self._semaphore.release()
@@ -120,18 +123,18 @@ class CharacterCollection:
     def _apply_alpha_postfixes(self):
         """Применение специальных правил для альфа-каналов"""
         for src, dst in _alpha_postfixes.items():
-            src_path = self.destination / src
-            dst_path = self.destination / dst
+            src_path = self.output_path / src
+            dst_path = self.output_path / dst
             if src_path.exists() and dst_path.exists():
                 try:
                     src_path.unlink()
-                    dst_path.link_to(src_path)
+                    os.link(dst_path, src_path)
                 except Exception as e:
-                    _warning(f"Ошибка применения постфикса {src}->{dst}: {str(e)}")
+                    logger.error(f"Ошибка применения постфикса {src}->{dst}: {str(e)}")
 
     def extract(self):
         """Основной метод извлечения"""
-        env = UnityPy.load(str(self.directory / 'resource_character.ab'))
+        env = UnityPy.load(str(self.input_path / 'resource_character.ab'))
 
         sprites = []
         for obj in env.objects:
@@ -140,16 +143,15 @@ class CharacterCollection:
                 if hasattr(data, 'name') and data.name:
                     sprites.append((data.name, obj.path_id, data))
 
-        # Обработка чанками
         for i in range(0, len(sprites), self.CHUNK_SIZE):
             self._process_sprite_chunk(sprites[i:i + self.CHUNK_SIZE])
 
         self._apply_alpha_postfixes()
 
     def save(self) -> Path:
-        output_path = self.destination.parent / self.SPRITE_CACHE
+        output_path = self.output_path.parent / self.CACHE_FILE
         with output_path.open('w', encoding='utf-8') as f:
-            json.dump(self.exported_images, f, ensure_ascii=False, indent=2)
+            json.dump(self.extracted, f, ensure_ascii=False, indent=2)
         return output_path
 
 
@@ -159,7 +161,7 @@ def main():
     parser.add_argument('output_dir', help='Целевая директория')
     parser.add_argument('--pngquant', action='store_true', help='Использовать pngquant')
     parser.add_argument('--force', action='store_true', help='Принудительная перезапись')
-    parser.add_argument('--concurrency', type=int, default=8,
+    parser.add_argument('--concurrency', type=int, default=4,
                         help='Количество потоков')
     args = parser.parse_args()
 
