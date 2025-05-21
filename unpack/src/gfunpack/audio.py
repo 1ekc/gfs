@@ -1,10 +1,9 @@
 import argparse
 import json
 import logging
-import pathlib
-import shutil
+import os
 import subprocess
-import threading
+import sys
 import zipfile
 from multiprocessing import Pool, cpu_count
 from pathlib import Path
@@ -12,15 +11,20 @@ from typing import Dict, List, Optional, Tuple
 
 import tqdm
 
-_logger = logging.getLogger('gfunpack.audio')
-_info = _logger.info
-_warning = _logger.warning
+# Настройка логирования
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler('audio_unpack.log'),
+        logging.StreamHandler()
+    ]
+)
+logger = logging.getLogger('audio')
+
 
 class AudioProcessor:
-    """Класс для обработки аудиофайлов с поддержкой кэширования"""
-
-    CACHE_FILE = "audio_cache.json"
-    CHUNK_SIZE = 5  # Обрабатывать по 5 файлов за раз
+    """Класс для обработки аудиофайлов"""
 
     def __init__(self, input_path: str, output_path: str,
                  force: bool = False, concurrency: int = 8, clean: bool = True):
@@ -32,14 +36,13 @@ class AudioProcessor:
         self.extracted = {}
 
         # Проверка и создание директорий
-        utils.check_directory(self.input_path)
+        if not self.input_path.exists():
+            raise FileNotFoundError(f"Директория не найдена: {self.input_path}")
+
         self.bgm_path = self.output_path / 'bgm'
         self.se_path = self.output_path / 'se'
         self.bgm_path.mkdir(parents=True, exist_ok=True)
         self.se_path.mkdir(parents=True, exist_ok=True)
-
-        # Проверка зависимостей
-        self._test_dependencies()
 
         # Поиск ресурсных файлов
         self.resource_files = list(f for f in self.input_path.glob('*.acb.dat') if f.name != 'AVG.acb.dat')
@@ -47,72 +50,133 @@ class AudioProcessor:
         if not self.se_resource_file.exists():
             raise FileNotFoundError(f"Аудиофайл не найден: {self.se_resource_file}")
 
+        # Проверка зависимостей
+        self._test_dependencies()
+
     def _test_dependencies(self):
-        """Проверка необходимых зависимостей"""
+        """Проверка необходимых утилит"""
         try:
             subprocess.run(['vgmstream-cli', '-V'],
-                         stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL).check_returncode()
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL).check_returncode()
             subprocess.run(['ffmpeg', '-h'],
-                         stdout=subprocess.DEVNULL,
-                         stderr=subprocess.DEVNULL).check_returncode()
-        except FileNotFoundError as e:
-            raise FileNotFoundError(f"Необходимая утилита не найдена: {str(e)}")
+                           stdout=subprocess.DEVNULL,
+                           stderr=subprocess.DEVNULL).check_returncode()
+        except (FileNotFoundError, subprocess.CalledProcessError) as e:
+            raise RuntimeError(f"Требуемая утилита не найдена: {str(e)}")
 
-    def process_in_chunks(self):
-        """Обработка файлов чанками"""
-        for i in range(0, len(self.resource_files), self.CHUNK_SIZE):
-            chunk = self.resource_files[i:i + self.CHUNK_SIZE]
-            self._process_chunk(chunk)
+    def _extract_acb(self, dat_file: Path, output_dir: Path) -> Optional[Path]:
+        """Извлечение ACB файла"""
+        try:
+            # Распаковка ZIP
+            with zipfile.ZipFile(dat_file) as z:
+                extracted = z.namelist()
+                if not extracted:
+                    return None
 
-    def _process_chunk(self, files: List[Path]):
-        """Обработка чанка файлов"""
+                z.extractall(output_dir)
+                acb_file = output_dir / extracted[0]
+
+                # Переименование .bytes в .acb если нужно
+                if acb_file.suffix == '.bytes':
+                    new_path = acb_file.with_suffix('.acb')
+                    acb_file.rename(new_path)
+                    acb_file = new_path
+
+                # Конвертация в WAV
+                subprocess.run([
+                    'vgmstream-cli',
+                    acb_file,
+                    '-o',
+                    output_dir / '?n.wav',
+                    '-S',
+                    '0',
+                ], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=True)
+
+                if self.clean:
+                    acb_file.unlink()
+
+                return acb_file
+        except Exception as e:
+            logger.error(f"Ошибка обработки {dat_file.name}: {str(e)}")
+            return None
+
+    def _transcode_to_m4a(self, wav_file: Path) -> Optional[Path]:
+        """Конвертация WAV в M4A"""
+        try:
+            m4a_file = wav_file.with_suffix('.m4a')
+            if not self.force and m4a_file.exists():
+                return m4a_file
+
+            subprocess.run([
+                'ffmpeg',
+                '-hide_banner',
+                '-loglevel', 'error',
+                '-i', wav_file,
+                m4a_file,
+            ], check=True)
+
+            if self.clean:
+                wav_file.unlink()
+
+            return m4a_file
+        except Exception as e:
+            logger.error(f"Ошибка конвертации {wav_file.name}: {str(e)}")
+            return None
+
+    def process(self):
+        """Основной метод обработки"""
+        # Обработка SE
+        logger.info("Обработка SE аудио")
+        self._extract_acb(self.se_resource_file, self.se_path)
+        for wav in self.se_path.glob('*.wav'):
+            if m4a := self._transcode_to_m4a(wav):
+                self.extracted[wav.stem] = str(m4a.relative_to(self.output_path))
+
+        # Обработка BGM
+        logger.info("Обработка BGM аудио")
         with Pool(processes=self.concurrency) as pool:
-            args = [(f, self.bgm_path, self.force, self.clean) for f in files]
-            with tqdm.tqdm(total=len(args), desc="Обработка BGM") as bar:
-                for _ in pool.imap_unordered(self._extract_acb, args):
-                    bar.update()
+            args = [(f, self.bgm_path) for f in self.resource_files]
+            for _ in tqdm.tqdm(
+                    pool.imap_unordered(self._process_single_bgm, args),
+                    total=len(args),
+                    desc="Обработка BGM"
+            ):
+                pass
 
-    def extract_and_convert(self) -> Dict[str, Path]:
-        """Основной метод обработки аудио"""
-        # Обработка SE файлов
-        _info('Обработка SE аудио')
-        self._extract_acb((self.se_resource_file, self.se_path, self.force, self.clean))
-        se_files = self._transcode_files(list(self.se_path.glob('*.wav')))
+        # Сбор результатов BGM
+        for m4a in self.bgm_path.glob('*.m4a'):
+            self.extracted[m4a.stem] = str(m4a.relative_to(self.output_path))
 
-        # Обработка BGM файлов чанками
-        _info('Обработка BGM аудио')
-        self.process_in_chunks()
-        bgm_files = self._transcode_files(list(self.bgm_path.glob('*.wav')))
-
-        # Объединение результатов
-        all_files = {**se_files, **bgm_files}
-        return all_files
+    def _process_single_bgm(self, args: Tuple[Path, Path]):
+        """Обработка одного BGM файла"""
+        dat_file, output_dir = args
+        if self._extract_acb(dat_file, output_dir):
+            for wav in output_dir.glob('*.wav'):
+                self._transcode_to_m4a(wav)
 
     def save(self) -> Path:
-        """Сохранение результатов в JSON"""
-        if not self.extracted:
-            self.extracted = self.extract_and_convert()
-
+        """Сохранение результатов"""
         output_file = self.output_path / 'audio.json'
         with output_file.open('w', encoding='utf-8') as f:
             json.dump(
-                {k: str(v) for k, v in self.extracted.items()},
+                self.extracted,
                 f,
                 indent=2,
                 ensure_ascii=False
             )
         return output_file
 
-if __name__ == "__main__":
+
+def main():
     parser = argparse.ArgumentParser(description='Обработка аудиофайлов игры')
-    parser.add_argument('input_dir', help='Директория с ресурсами игры')
-    parser.add_argument('output_dir', help='Целевая директория для результатов')
-    parser.add_argument('--force', action='store_true', help='Принудительная перезапись файлов')
-    parser.add_argument('--concurrency', type=int, default=8,
-                       help='Количество параллельных процессов')
+    parser.add_argument('input_dir', help='Директория с ресурсами')
+    parser.add_argument('output_dir', help='Целевая директория')
+    parser.add_argument('--force', action='store_true', help='Принудительная перезапись')
+    parser.add_argument('--concurrency', type=int, default=4,
+                        help='Количество процессов')
     parser.add_argument('--no-clean', action='store_true',
-                       help='Не удалять промежуточные файлы')
+                        help='Не удалять промежуточные файлы')
     args = parser.parse_args()
 
     processor = AudioProcessor(
@@ -122,5 +186,10 @@ if __name__ == "__main__":
         concurrency=args.concurrency,
         clean=not args.no_clean
     )
+    processor.process()
     result_path = processor.save()
-    print(f"Обработка аудио завершена. Результаты сохранены в: {result_path}")
+    print(f"Обработка завершена. Результаты сохранены в: {result_path}")
+
+
+if __name__ == "__main__":
+    main()

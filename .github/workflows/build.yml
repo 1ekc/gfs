@@ -94,11 +94,12 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gf-images-
 
-      - name: Process Images
-        if: steps.restore-images.outputs.cache-hit != 'true'
+      - name: Process Audio
+        if: steps.restore-audio.outputs.cache-hit != 'true'
         run: |
           cd unpack
           source .venv/bin/activate
+          python audio.py downloader/output audio --concurrency 4
           python backgrounds.py downloader/output images --concurrency 4
           python characters.py downloader/output images --concurrency 4
 
