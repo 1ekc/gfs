@@ -14,7 +14,7 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}  # Раскомментировано, необходимо для подмодулей
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Log Disk Space
         run: df -h
@@ -46,16 +46,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install pyjson5 pillow
 
-      - name: Restore Cached Resources
-        id: restore-cache
-        uses: actions/cache@v4
+      - name: Restore Downloader Cache
+        id: restore-downloader
+        uses: actions/cache/restore@v4
         with:
           path: |
             unpack/downloader/output
             unpack/downloader/resdata
-          key: ${{ runner.os }}-gf-resources-${{ hashFiles('unpack/downloader/config.json5') }}
+          key: ${{ runner.os }}-gf-downloader-${{ hashFiles('unpack/downloader/config.json5') }}
           restore-keys: |
-            ${{ runner.os }}-gf-resources-
+            ${{ runner.os }}-gf-downloader-
 
       - name: Setup PDM
         uses: pdm-project/setup-pdm@v4
@@ -70,94 +70,89 @@ jobs:
       - name: Fix Logging Configuration
         run: |
           cd unpack/downloader
-          # Создаем минимальный конфиг логгера
           mkdir -p logger_tt
           echo '{"version":1,"disable_existing_loggers":false}' > logger_tt/log_config.json
-          # Заменяем проблемную функцию
           sed -i "s/setup_mp_logging()/import logging; logging.basicConfig(level=logging.INFO)/" downloader.py
 
       - name: Download Resources
-        if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
+        if: steps.restore-downloader.outputs.cache-hit != 'true'
         env:
-          GD_DATA: ${{ secrets.GD_DATA }}  # JSON сервисного аккаунта
+          GD_DATA: ${{ secrets.GD_DATA }}
         run: |
           cd unpack/downloader
-
-          # Проверка наличия config.json5
+          
           if [ ! -f "config.json5" ]; then
             echo "::error::Файл config.json5 не найден!"
             exit 1
           fi
 
-          # Создаем символическую ссылку
           ln -sf config.json5 config.json
-
-          # Установка зависимостей
           pip install -r requirements.txt
+          
+          # Добавлен --clear-cache при первом запуске
+          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --clear-cache
 
-          # Запуск скрипта
-          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
-
-          # Проверка результата
           if [ ! -f "resdata/us_resdata.json" ]; then
             echo "::error::Ошибка загрузки файлов"
             exit 1
           fi
           echo "::notice::Загрузка завершена успешно"
 
-      - name: Save Resources Cache
+      - name: Save Downloader Cache
         if: always()
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/downloader/output
             unpack/downloader/resdata
-          key: ${{ runner.os }}-gf-resources-${{ hashFiles('unpack/downloader/config.json5') }}
+          key: ${{ steps.restore-downloader.outputs.cache-primary-key }}
 
       - name: Restore Image Cache
-        id: restore-image-resources
+        id: restore-images
         uses: actions/cache/restore@v4
         with:
-          path: |
-            unpack/images
-          key: gf-image-resources-${{ hashFiles('unpack/tests/test_backgrounds.py') }}
+          path: unpack/images
+          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/tests/test_backgrounds.py') }}
+          restore-keys: |
+            ${{ runner.os }}-gf-images-
 
       - name: Process Images
+        if: steps.restore-downloader.outputs.cache-hit != 'true' || steps.restore-images.outputs.cache-hit != 'true'
         run: |
           cd unpack
           source .venv/bin/activate
           python tests/test_backgrounds.py
           python tests/test_characters.py
 
-      - name: Cache Processed Images
-        if: always() && steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
+      - name: Save Image Cache
+        if: always()
         uses: actions/cache/save@v4
         with:
-          path: |
-            unpack/downloader/output
-            unpack/downloader/resdata
-          key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
+          path: unpack/images
+          key: ${{ steps.restore-images.outputs.cache-primary-key }}
 
       - name: Restore Audio Cache
-        id: restore-audio-resources
+        id: restore-audio
         uses: actions/cache/restore@v4
         with:
-          path: |
-            unpack/audio
-          key: gf-audio-resources-${{ hashFiles('unpack/tests/test_audio.py') }}
+          path: unpack/audio
+          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/tests/test_audio.py') }}
+          restore-keys: |
+            ${{ runner.os }}-gf-audio-
 
       - name: Process Audio
+        if: steps.restore-downloader.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true'
         run: |
           cd unpack
           source .venv/bin/activate
           python tests/test_audio.py
 
-      - name: Cache Processed Audio
+      - name: Save Audio Cache
+        if: always()
         uses: actions/cache/save@v4
         with:
-          path: |
-            unpack/audio
-          key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
+          path: unpack/audio
+          key: ${{ steps.restore-audio.outputs.cache-primary-key }}
 
       - name: Unpack All Resources
         run: |
@@ -176,7 +171,7 @@ jobs:
         uses: pnpm/action-setup@v4
         with:
           version: 9.4.0
-          run_install: true  # Автоматически запускает pnpm install
+          run_install: true
 
       - name: Build Frontend
         run: |
