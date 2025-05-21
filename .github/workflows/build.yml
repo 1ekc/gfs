@@ -106,13 +106,13 @@ jobs:
           echo "::notice::Загрузка завершена успешно"
 
       - name: Save Resources Cache
-        if: always()  # Важно: сохраняем кэш в любом случае
+        if: always()
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/downloader/output
             unpack/downloader/resdata
-          key: ${{ steps.restore-cache.outputs.cache-primary-key }}  # Используем тот же ключ
+          key: ${{ runner.os }}-gf-resources-${{ hashFiles('unpack/downloader/config.json5') }}
 
       - name: Restore Image Cache
         id: restore-image-resources

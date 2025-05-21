@@ -10,6 +10,12 @@ import UnityPy
 from tqdm import tqdm
 from UnityPy.classes import Sprite, Texture2D
 
+# Добавляем абсолютный импорт utils
+try:
+    from gfunpack import utils
+except ImportError:
+    from . import utils  # Для случаев относительного импорта
+
 # Настройка логирования
 logging.basicConfig(
     level=logging.INFO,
@@ -25,26 +31,26 @@ _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png
 
 
 class BackgroundCollection:
-    def __init__(
-            self,
-            directory: str,
-            destination: str,
-            pngquant: bool = False,
-            force: bool = False,
-            concurrency: Optional[int] = None
-    ):
+    def __init__(self, directory: str, destination: str, pngquant: bool = False):
         self.directory = pathlib.Path(directory)
-        self.destination = pathlib.Path(destination).joinpath('background')
-        self.pngquant = pngquant
-        self.force = force
-        self.concurrency = concurrency or max(1, cpu_count() - 1)
-        self.progress = Manager().dict()
-        self.extracted = {}  # Добавляем атрибут extracted
+        self.destination = pathlib.Path(destination)
+        self.pngquant = utils.test_pngquant(pngquant)
+        self.extracted = {}
 
         # Проверка директорий
-        if not self.directory.exists():
-            raise FileNotFoundError(f"Input directory not found: {self.directory}")
+        utils.check_directory(self.directory)
         self.destination.mkdir(parents=True, exist_ok=True)
+
+    def _extract_bg_profiles(self) -> List[str]:
+        """Извлечение профилей фонов"""
+        bundle_path = self.directory / 'asset_textavg.ab'
+        content = utils.read_text_asset(
+            str(bundle_path),
+            'assets/resources/dabao/avgtxt/profiles.txt'
+        )
+        if content is None:
+            raise ValueError("Failed to load profiles.txt")
+        return [line.strip() for line in content.split('\n') if line.strip()]
 
     def _extract_bg_profiles(self) -> List[str]:
         """Извлечение профилей фонов"""

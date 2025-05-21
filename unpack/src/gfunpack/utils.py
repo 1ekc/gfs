@@ -1,9 +1,7 @@
 import logging
-import os
 import pathlib
 import subprocess
-import typing
-from typing import Optional
+from typing import Union, Optional
 
 import UnityPy
 from UnityPy.classes import TextAsset
@@ -58,26 +56,19 @@ def pngquant(image_path: pathlib.Path, use_pngquant: bool) -> None:
         _warning('Failed to optimize image %s: %s', image_path, str(e))
 
 
-def read_text_asset(bundle: typing.Union[pathlib.Path, str], container: str) -> Optional[str]:
+def read_text_asset(bundle_path: Union[str, pathlib.Path], container: str) -> Optional[str]:
     """Читает текстовый ассет из Unity бандла."""
     try:
-        bundle_path = str(bundle) if isinstance(bundle, pathlib.Path) else bundle
-        asset = UnityPy.load(bundle_path)
-
-        # Ищем объект с указанным контейнером
-        text_assets = [
-            o for o in asset.objects
-            if hasattr(o, 'container') and
-               o.container == container and
-               o.type.name == 'TextAsset'
-        ]
-
-        if not text_assets:
-            _warning('TextAsset not found in container: %s', container)
-            return None
-
-        profile = typing.cast(TextAsset, text_assets[0].read())
-        return profile.m_Script.tobytes().decode('utf-8', errors='replace')
+        env = UnityPy.load(str(bundle_path))
+        for obj in env.objects:
+            if isinstance(obj, TextAsset) and getattr(obj, 'container', None) == container:
+                text_asset = obj.read()
+                return text_asset.m_Script.tobytes().decode('utf-8')
+        logger.error(f"TextAsset not found in container: {container}")
+        return None
+    except Exception as e:
+        logger.error(f"Failed to read text asset: {str(e)}")
+        return None
 
     except Exception as e:
         _warning('Failed to read text asset from %s: %s', bundle, str(e), exc_info=True)
