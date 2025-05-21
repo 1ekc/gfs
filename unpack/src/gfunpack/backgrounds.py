@@ -11,11 +11,13 @@ import UnityPy
 from tqdm import tqdm
 from UnityPy.classes import Sprite, Texture2D
 
-# Добавляем абсолютный импорт utils
+# Настройка системы импорта
 try:
+    # Попытка абсолютного импорта
     from gfunpack import utils
 except ImportError:
-    from . import utils  # Для случаев относительного импорта
+    # Относительный импорт для прямого запуска
+    import utils
 
 # Настройка логирования
 logging.basicConfig(
@@ -26,46 +28,64 @@ logging.basicConfig(
         logging.StreamHandler()
     ]
 )
-logger = logging.getLogger('gfunpack.backgrounds')
+logger = logging.getLogger(__name__)
 
 _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png$')
 
 
 class BackgroundCollection:
-    def __init__(self, directory: str, destination: str, pngquant: bool = False, concurrency: int = 4):
+    """Класс для обработки и извлечения фоновых изображений с поддержкой кэширования"""
+
+    CACHE_FILE = "backgrounds_cache.json"
+
+    def __init__(self, input_path: str, output_path: str, pngquant: bool = False, concurrency: int = 4,
+                 force: bool = False):
         """
         Args:
-            directory: Путь к директории с ресурсами
-            destination: Путь для сохранения результатов
+            input_path: Путь к директории с ресурсами
+            output_path: Путь для сохранения результатов
             pngquant: Использовать pngquant для оптимизации
-            concurrency: Количество параллельных процессов (по умолчанию 4)
+            concurrency: Количество параллельных процессов
+            force: Принудительная перезапись существующих файлов
         """
-        self.directory = pathlib.Path(directory)
-        self.destination = pathlib.Path(destination)
+        self.input_path = Path(input_path)
+        self.output_path = Path(output_path)
         self.pngquant = utils.test_pngquant(pngquant)
-        self.concurrency = concurrency  # Используем переданный параметр
+        self.concurrency = concurrency
+        self.force = force
         self.extracted = {}
+        self._manager = Manager()
+        self.progress = self._manager.dict()
 
-        # Проверка директорий
-        utils.check_directory(self.directory)
-        self.destination.mkdir(parents=True, exist_ok=True)
+        # Проверка и создание директорий
+        utils.check_directory(self.input_path)
+        self.output_path.mkdir(parents=True, exist_ok=True)
 
-    def _extract_bg_profiles(self) -> List[str]:
-        """Извлечение профилей фонов"""
-        bundle_path = self.directory / 'asset_textavg.ab'
-        content = utils.read_text_asset(
-            str(bundle_path),
-            'assets/resources/dabao/avgtxt/profiles.txt'
-        )
-        if content is None:
-            raise ValueError("Failed to load profiles.txt")
-        return [line.strip() for line in content.split('\n') if line.strip()]
+    def _load_cache(self) -> Optional[Dict]:
+        """Загрузка данных из кэша"""
+        cache_file = self.output_path / self.CACHE_FILE
+        if cache_file.exists():
+            try:
+                with cache_file.open('r', encoding='utf-8') as f:
+                    return json.load(f)
+            except Exception as e:
+                logger.warning(f"Failed to load cache: {str(e)}")
+        return None
+
+    def _save_cache(self, data: Dict):
+        """Сохранение данных в кэш"""
+        cache_file = self.output_path / self.CACHE_FILE
+        try:
+            with cache_file.open('w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except Exception as e:
+            logger.error(f"Failed to save cache: {str(e)}")
 
     def _extract_bg_profiles(self) -> List[str]:
         """Извлечение профилей фонов"""
         try:
             content = utils.read_text_asset(
-                self.directory / 'asset_textavg.ab',
+                self.input_path / 'asset_textavg.ab',
                 'assets/resources/dabao/avgtxt/profiles.txt'
             )
             return [line.strip() for line in content.split('\n') if line.strip()]
@@ -73,7 +93,7 @@ class BackgroundCollection:
             logger.error(f"Failed to extract bg profiles: {str(e)}")
             raise
 
-    def _process_asset_file(self, file_path: pathlib.Path) -> Dict[str, Union[Sprite, Texture2D]]:
+    def _process_asset_file(self, file_path: Path) -> Dict[str, Union[Sprite, Texture2D]]:
         """Обработка одного .ab файла"""
         results = {}
         try:
@@ -82,28 +102,27 @@ class BackgroundCollection:
                 if obj.container and _avgtexture_regex.match(obj.container):
                     name = _avgtexture_regex.match(obj.container).group(1).lower()
                     data = obj.read()
-                    # Приоритет для Texture2D
                     if name not in results or isinstance(results[name], Sprite):
                         results[name] = data
         except Exception as e:
             logger.error(f"Error processing {file_path.name}: {str(e)}")
         return results
 
-    def _save_image(self, args: Tuple[Tuple[str, Union[Sprite, Texture2D]], int]) -> Optional[Tuple[str, pathlib.Path]]:
-        """Сохранение одного изображения"""
+    def _save_image(self, args: Tuple[Tuple[str, Union[Sprite, Texture2D]], int]) -> Optional[Tuple[str, Path]]:
+        """Сохранение одного изображения с проверкой кэша"""
         (name, image), pbar_pos = args
         try:
-            output_path = self.destination / f"{name}.png"
+            output_path = self.output_path / f"{name}.png"
 
-            if not self.force and output_path.exists():
+            # Проверка кэша и существующих файлов
+            if not self.force and output_path.exists() and output_path.stat().st_size > 0:
                 self.progress[pbar_pos] = True
                 return (name, output_path)
 
             if isinstance(image, (Sprite, Texture2D)):
                 image.image.save(output_path)
                 if self.pngquant:
-                    # Здесь должна быть ваша реализация pngquant
-                    pass
+                    utils.run_pngquant(output_path)
                 self.progress[pbar_pos] = True
                 return (name, output_path)
         except Exception as e:
@@ -111,10 +130,16 @@ class BackgroundCollection:
             self.progress[pbar_pos] = False
         return None
 
-    def _extract_bg_pics(self) -> Dict[str, pathlib.Path]:
-        """Основной метод извлечения изображений"""
-        extracted = {}
-        resource_files = list(self.directory.glob('resource_avgtexture*.ab'))
+    def _extract_bg_pics(self) -> Dict[str, Path]:
+        """Основной метод извлечения изображений с поддержкой кэширования"""
+        # Проверка кэша
+        cache_data = self._load_cache()
+        if cache_data and not self.force:
+            return {k: Path(v) for k, v in cache_data.items()}
+
+        # Извлечение данных
+        resource_files = list(self.input_path.glob('resource_avgtexture*.ab'))
+        all_images = {}
 
         with Pool(processes=self.concurrency) as pool:
             results = list(tqdm(
@@ -122,12 +147,13 @@ class BackgroundCollection:
                 total=len(resource_files),
                 desc="Processing AB files"
             ))
+            for result in results:
+                all_images.update(result)
 
-        all_images = {}
-        for result in results:
-            all_images.update(result)
-
+        # Сохранение изображений
         tasks = list(all_images.items())
+        saved_images = {}
+
         with Pool(processes=self.concurrency) as pool:
             results = list(tqdm(
                 pool.starmap(
@@ -137,11 +163,14 @@ class BackgroundCollection:
                 total=len(tasks),
                 desc="Saving images"
             ))
+            saved_images = {k: v for k, v in results if v is not None}
 
-        return {k: v for k, v in results if v is not None}
+        # Обновление кэша
+        self._save_cache({k: str(v) for k, v in saved_images.items()})
+        return saved_images
 
-    def extract(self) -> Dict[int, Optional[pathlib.Path]]:
-        """Извлечение всех фонов"""
+    def extract(self) -> Dict[int, Optional[Path]]:
+        """Извлечение всех фонов с поддержкой кэширования"""
         bg_profiles = self._extract_bg_profiles()
         pics = self._extract_bg_pics()
 
@@ -160,30 +189,43 @@ class BackgroundCollection:
         for path in set(p.resolve() for p in pics.values()) - set(matched):
             merged[-len(merged)] = path
 
-        self.extracted = merged  # Сохраняем результат в атрибут
+        self.extracted = merged
         return merged
 
-    def save(self) -> pathlib.Path:
-        """Сохранение результатов в JSON"""
+    def save(self) -> Path:
+        """Сохранение результатов в JSON с поддержкой кэширования"""
         if not hasattr(self, 'extracted') or not self.extracted:
-            self.extract()  # Если extracted нет, вызываем extract()
+            self.extract()
 
         result = {
-            k: "" if v is None else str(v.relative_to(self.destination.parent))
+            k: "" if v is None else str(v.relative_to(self.output_path.parent))
             for k, v in self.extracted.items()
         }
 
-        path = self.destination.parent.joinpath('backgrounds.json')
-        with path.open('w', encoding='utf-8') as f:
+        output_file = self.output_path.parent / 'backgrounds.json'
+        with output_file.open('w', encoding='utf-8') as f:
             json.dump(result, f, ensure_ascii=False, indent=2)
 
-        return path
+        return output_file
 
 
 if __name__ == "__main__":
+    # Пример использования с поддержкой аргументов командной строки
+    import argparse
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('input_dir', help='Input directory with game resources')
+    parser.add_argument('output_dir', help='Output directory for processed files')
+    parser.add_argument('--pngquant', action='store_true', help='Use pngquant optimization')
+    parser.add_argument('--force', action='store_true', help='Force re-process all files')
+    args = parser.parse_args()
+
     processor = BackgroundCollection(
-        directory="downloader/output",
-        destination="images",
-        pngquant=True
+        input_path=args.input_dir,
+        output_path=args.output_dir,
+        pngquant=args.pngquant,
+        force=args.force,
+        concurrency=cpu_count()
     )
-    processor.save()
+    result_path = processor.save()
+    print(f"Processing complete. Results saved to: {result_path}")
