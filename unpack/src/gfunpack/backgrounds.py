@@ -3,7 +3,7 @@ import logging
 import pathlib
 import re
 import sys
-from multiprocessing import Pool, cpu_count, Manager
+from multiprocessing import Pool, cpu_count
 from pathlib import Path
 from typing import Dict, List, Optional, Union, Tuple
 
@@ -13,10 +13,8 @@ from UnityPy.classes import Sprite, Texture2D
 
 # Настройка системы импорта
 try:
-    # Попытка абсолютного импорта
     from gfunpack import utils
 except ImportError:
-    # Относительный импорт для прямого запуска
     import utils
 
 # Настройка логирования
@@ -34,12 +32,12 @@ _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png
 
 
 class BackgroundCollection:
-    """Класс для обработки и извлечения фоновых изображений с поддержкой кэширования"""
+    """Класс для обработки фоновых изображений с исправленной многопроцессорной обработкой"""
 
     CACHE_FILE = "backgrounds_cache.json"
 
-    def __init__(self, input_path: str, output_path: str, pngquant: bool = False, concurrency: int = 4,
-                 force: bool = False):
+    def __init__(self, input_path: str, output_path: str, pngquant: bool = False,
+                 concurrency: int = 4, force: bool = False):
         """
         Args:
             input_path: Путь к директории с ресурсами
@@ -51,15 +49,50 @@ class BackgroundCollection:
         self.input_path = Path(input_path)
         self.output_path = Path(output_path)
         self.pngquant = utils.test_pngquant(pngquant)
-        self.concurrency = concurrency
+        self.concurrency = min(concurrency, cpu_count())
         self.force = force
         self.extracted = {}
-        self._manager = Manager()
-        self.progress = self._manager.dict()
 
         # Проверка и создание директорий
         utils.check_directory(self.input_path)
         self.output_path.mkdir(parents=True, exist_ok=True)
+
+    @staticmethod
+    def _process_single_file(args: Tuple[Path, re.Pattern]) -> Dict[str, Union[Sprite, Texture2D]]:
+        """Статический метод для обработки одного файла (должен быть pickle-able)"""
+        file_path, regex = args
+        results = {}
+        try:
+            env = UnityPy.load(str(file_path))
+            for obj in env.objects:
+                if obj.container and regex.match(obj.container):
+                    name = regex.match(obj.container).group(1).lower()
+                    data = obj.read()
+                    if name not in results or isinstance(results[name], Sprite):
+                        results[name] = data
+        except Exception as e:
+            logging.error(f"Error processing {file_path.name}: {str(e)}")
+        return results
+
+    @staticmethod
+    def _save_single_image(args: Tuple[Tuple[str, Union[Sprite, Texture2D]], Path, bool, bool]) -> Optional[Path]:
+        """Статический метод для сохранения одного изображения (должен быть pickle-able)"""
+        (name, image), output_dir, pngquant, force = args
+        try:
+            output_path = output_dir / f"{name}.png"
+
+            # Пропускаем существующие файлы, если не force
+            if not force and output_path.exists() and output_path.stat().st_size > 0:
+                return output_path
+
+            if isinstance(image, (Sprite, Texture2D)):
+                image.image.save(output_path)
+                if pngquant:
+                    utils.run_pngquant(output_path)
+                return output_path
+        except Exception as e:
+            logging.error(f"Failed to save {name}: {str(e)}")
+        return None
 
     def _load_cache(self) -> Optional[Dict]:
         """Загрузка данных из кэша"""
@@ -93,43 +126,6 @@ class BackgroundCollection:
             logger.error(f"Failed to extract bg profiles: {str(e)}")
             raise
 
-    def _process_asset_file(self, file_path: Path) -> Dict[str, Union[Sprite, Texture2D]]:
-        """Обработка одного .ab файла"""
-        results = {}
-        try:
-            env = UnityPy.load(str(file_path))
-            for obj in env.objects:
-                if obj.container and _avgtexture_regex.match(obj.container):
-                    name = _avgtexture_regex.match(obj.container).group(1).lower()
-                    data = obj.read()
-                    if name not in results or isinstance(results[name], Sprite):
-                        results[name] = data
-        except Exception as e:
-            logger.error(f"Error processing {file_path.name}: {str(e)}")
-        return results
-
-    def _save_image(self, args: Tuple[Tuple[str, Union[Sprite, Texture2D]], int]) -> Optional[Tuple[str, Path]]:
-        """Сохранение одного изображения с проверкой кэша"""
-        (name, image), pbar_pos = args
-        try:
-            output_path = self.output_path / f"{name}.png"
-
-            # Проверка кэша и существующих файлов
-            if not self.force and output_path.exists() and output_path.stat().st_size > 0:
-                self.progress[pbar_pos] = True
-                return (name, output_path)
-
-            if isinstance(image, (Sprite, Texture2D)):
-                image.image.save(output_path)
-                if self.pngquant:
-                    utils.run_pngquant(output_path)
-                self.progress[pbar_pos] = True
-                return (name, output_path)
-        except Exception as e:
-            logger.error(f"Failed to save {name}: {str(e)}")
-            self.progress[pbar_pos] = False
-        return None
-
     def _extract_bg_pics(self) -> Dict[str, Path]:
         """Основной метод извлечения изображений с поддержкой кэширования"""
         # Проверка кэша
@@ -137,13 +133,17 @@ class BackgroundCollection:
         if cache_data and not self.force:
             return {k: Path(v) for k, v in cache_data.items()}
 
-        # Извлечение данных
+        # Обработка файлов
         resource_files = list(self.input_path.glob('resource_avgtexture*.ab'))
         all_images = {}
 
+        # Используем статический метод для обработки
         with Pool(processes=self.concurrency) as pool:
             results = list(tqdm(
-                pool.imap_unordered(self._process_asset_file, resource_files),
+                pool.imap_unordered(
+                    self._process_single_file,
+                    [(f, _avgtexture_regex) for f in resource_files]
+                ),
                 total=len(resource_files),
                 desc="Processing AB files"
             ))
@@ -151,22 +151,28 @@ class BackgroundCollection:
                 all_images.update(result)
 
         # Сохранение изображений
-        tasks = list(all_images.items())
         saved_images = {}
+        args = [
+            ((name, img), self.output_path, self.pngquant, self.force)
+            for name, img in all_images.items()
+        ]
 
         with Pool(processes=self.concurrency) as pool:
             results = list(tqdm(
-                pool.starmap(
-                    self._save_image,
-                    [((task), i) for i, task in enumerate(tasks)]
-                ),
-                total=len(tasks),
+                pool.imap_unordered(self._save_single_image, args),
+                total=len(args),
                 desc="Saving images"
             ))
-            saved_images = {k: v for k, v in results if v is not None}
+            saved_images = {
+                name: path
+                for (name, _), path in zip(all_images.items(), results)
+                if path is not None
+            }
 
         # Обновление кэша
-        self._save_cache({k: str(v) for k, v in saved_images.items()})
+        if saved_images:
+            self._save_cache({k: str(v) for k, v in saved_images.items()})
+
         return saved_images
 
     def extract(self) -> Dict[int, Optional[Path]]:
@@ -210,7 +216,6 @@ class BackgroundCollection:
 
 
 if __name__ == "__main__":
-    # Пример использования с поддержкой аргументов командной строки
     import argparse
 
     parser = argparse.ArgumentParser()
