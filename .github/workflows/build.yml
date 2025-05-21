@@ -80,7 +80,7 @@ jobs:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
           cd unpack/downloader
-          
+
           if [ ! -f "config.json5" ]; then
             echo "::error::Файл config.json5 не найден!"
             exit 1
@@ -88,9 +88,9 @@ jobs:
 
           ln -sf config.json5 config.json
           pip install -r requirements.txt
-#
-#          # Добавлен --clear-cache при первом запуске
-#          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --clear-cache
+
+          # Запуск скрипта без --clear-cache
+          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
           if [ ! -f "resdata/us_resdata.json" ]; then
             echo "::error::Ошибка загрузки файлов"
