@@ -10,6 +10,8 @@ permissions:
 jobs:
   documentation:
     runs-on: ubuntu-latest
+    timeout-minutes: 180  # Увеличенный таймаут
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -44,7 +46,7 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install pyjson5 pillow
+          pip install pyjson5 pillow UnityPy tqdm
 
       - name: Restore Downloader Cache
         id: restore-downloader
@@ -57,49 +59,25 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gf-downloader-
 
-      - name: Setup PDM
-        uses: pdm-project/setup-pdm@v4
-
-      - name: Install Python Dependencies
-        run: |
-          cd unpack
-          source .venv/bin/activate
-          pdm install
-          pip install -r downloader/requirements.txt
-
-      - name: Fix Logging Configuration
-        run: |
-          cd unpack/downloader
-          mkdir -p logger_tt
-          echo '{"version":1,"disable_existing_loggers":false}' > logger_tt/log_config.json
-          sed -i "s/setup_mp_logging()/import logging; logging.basicConfig(level=logging.INFO)/" downloader.py
-
       - name: Download Resources
         if: steps.restore-downloader.outputs.cache-hit != 'true'
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
           cd unpack/downloader
-
           if [ ! -f "config.json5" ]; then
             echo "::error::Файл config.json5 не найден!"
             exit 1
           fi
-
           ln -sf config.json5 config.json
-          pip install -r requirements.txt
-
-          # Запуск скрипта без --clear-cache
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
-
           if [ ! -f "resdata/us_resdata.json" ]; then
             echo "::error::Ошибка загрузки файлов"
             exit 1
           fi
-          echo "::notice::Загрузка завершена успешно"
 
       - name: Save Downloader Cache
-        if: always()
+        if: always() && steps.restore-downloader.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: |
@@ -107,25 +85,25 @@ jobs:
             unpack/downloader/resdata
           key: ${{ steps.restore-downloader.outputs.cache-primary-key }}
 
-      - name: Restore Image Cache
+      - name: Restore Images Cache
         id: restore-images
         uses: actions/cache/restore@v4
         with:
           path: unpack/images
-          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/tests/test_backgrounds.py') }}
+          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/backgrounds.py') }}
           restore-keys: |
             ${{ runner.os }}-gf-images-
 
       - name: Process Images
-        if: steps.restore-downloader.outputs.cache-hit != 'true' || steps.restore-images.outputs.cache-hit != 'true'
+        if: steps.restore-images.outputs.cache-hit != 'true'
         run: |
           cd unpack
           source .venv/bin/activate
-          python tests/test_backgrounds.py
-          python tests/test_characters.py
+          python -m backgrounds downloader/output images --concurrency 4
+          python -m characters downloader/output images --concurrency 4
 
-      - name: Save Image Cache
-        if: always()
+      - name: Save Images Cache
+        if: always() && steps.restore-images.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: unpack/images
@@ -136,36 +114,30 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: unpack/audio
-          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/tests/test_audio.py') }}
+          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/audio.py') }}
           restore-keys: |
             ${{ runner.os }}-gf-audio-
 
       - name: Process Audio
-        if: steps.restore-downloader.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true'
+        if: steps.restore-audio.outputs.cache-hit != 'true'
         run: |
           cd unpack
           source .venv/bin/activate
-          python tests/test_audio.py
+          python -m audio downloader/output audio --concurrency 4
 
       - name: Save Audio Cache
-        if: always()
+        if: always() && steps.restore-audio.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: unpack/audio
           key: ${{ steps.restore-audio.outputs.cache-primary-key }}
 
-      - name: Unpack All Resources
-        run: |
-          cd unpack
-          source .venv/bin/activate
-          python -m gfunpack downloader/output -o .
-
       - name: Prepare Final Assets
         run: |
           cd unpack
           mkdir -p ../src/assets ../public
-          cp audio/audio.json images/backgrounds.json images/characters.json stories/stories.json stories/chapters.json ../src/assets/
-          mv audio images stories ../public/
+          cp audio/audio.json images/backgrounds.json images/characters.json ../src/assets/
+          mv audio images ../public/
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
@@ -175,7 +147,7 @@ jobs:
 
       - name: Build Frontend
         run: |
-          pnpm build-index
+          pnpm install
           pnpm build
 
       - name: Deploy to Cloudflare
