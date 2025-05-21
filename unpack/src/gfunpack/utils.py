@@ -3,6 +3,7 @@ import os
 import pathlib
 import subprocess
 import typing
+from typing import Optional
 
 import UnityPy
 from UnityPy.classes import TextAsset
@@ -11,42 +12,73 @@ _logger = logging.getLogger('gfunpack.utils')
 _warning = _logger.warning
 
 
-def check_directory(directory: pathlib.Path | str, create: bool = False) -> pathlib.Path:
+def check_directory(directory: typing.Union[pathlib.Path, str], create: bool = False) -> pathlib.Path:
+    """Проверяет и создает (при необходимости) директорию."""
     d = pathlib.Path(directory)
     if not d.exists() and create:
-        os.makedirs(d)
+        try:
+            os.makedirs(d, exist_ok=True)
+        except OSError as e:
+            raise ValueError(f'Failed to create directory {d}: {str(e)}')
     if not d.exists() or not d.is_dir():
         raise ValueError(f'{d} is not a valid directory')
     return d.resolve()
 
 
-def test_pngquant(use_pngquant: bool):
+def test_pngquant(use_pngquant: bool) -> bool:
+    """Проверяет доступность pngquant."""
     if not use_pngquant:
         return False
-    else:
-        try:
-            subprocess.run(['pngquant', '--help'], stdout=subprocess.DEVNULL).check_returncode()
-            return True
-        except FileNotFoundError as e:
-            _warning('pngquant not available', exc_info=e)
-            return False
+    try:
+        subprocess.run(
+            ['pngquant', '--version'],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL
+        ).check_returncode()
+        return True
+    except (FileNotFoundError, subprocess.SubprocessError) as e:
+        _warning('pngquant not available: %s', str(e))
+        return False
 
 
-def pngquant(image_path: pathlib.Path, use_pngquant: bool):
-    # pngquant to minimize the image
-    if use_pngquant:
+def pngquant(image_path: pathlib.Path, use_pngquant: bool) -> None:
+    """Оптимизирует PNG изображение с помощью pngquant."""
+    if not use_pngquant or not test_pngquant(True):
+        return
+
+    try:
         quant_path = image_path.with_suffix('.fs8.png')
-        subprocess.run(['pngquant', image_path, '--ext', '.fs8.png', '--strip']).check_returncode()
-        os.replace(quant_path, image_path)
+        result = subprocess.run(
+            ['pngquant', '--quality', '70-90', '--ext', '.fs8.png', '--strip', str(image_path)],
+            check=True
+        )
+        if result.returncode == 0 and quant_path.exists():
+            os.replace(quant_path, image_path)
+    except subprocess.SubprocessError as e:
+        _warning('Failed to optimize image %s: %s', image_path, str(e))
 
 
-def read_text_asset(bundle: pathlib.Path, container: str):
-    asset = UnityPy.load(str(bundle))
-    profile_reader = [o for o in asset.objects if o.container == container][0]
-    assert profile_reader.type.name == 'TextAsset'
-    profile = typing.cast(
-        TextAsset,
-        profile_reader.read(),
-    )
-    content: str = profile.m_Script.tobytes().decode()
-    return content
+def read_text_asset(bundle: typing.Union[pathlib.Path, str], container: str) -> Optional[str]:
+    """Читает текстовый ассет из Unity бандла."""
+    try:
+        bundle_path = str(bundle) if isinstance(bundle, pathlib.Path) else bundle
+        asset = UnityPy.load(bundle_path)
+
+        # Ищем объект с указанным контейнером
+        text_assets = [
+            o for o in asset.objects
+            if hasattr(o, 'container') and
+               o.container == container and
+               o.type.name == 'TextAsset'
+        ]
+
+        if not text_assets:
+            _warning('TextAsset not found in container: %s', container)
+            return None
+
+        profile = typing.cast(TextAsset, text_assets[0].read())
+        return profile.m_Script.tobytes().decode('utf-8', errors='replace')
+
+    except Exception as e:
+        _warning('Failed to read text asset from %s: %s', bundle, str(e), exc_info=True)
+        return None
