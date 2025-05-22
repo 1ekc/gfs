@@ -5,8 +5,8 @@ on:
   push:
 
 # Раскомментируйте следующую строку для принудительной очистки кэша
-env:
-  CLEAN_CACHE: "true"
+#env:
+#  CLEAN_CACHE: "true"
 
 permissions:
   contents: write
@@ -85,13 +85,15 @@ jobs:
           echo "✅ Cache is valid"
 
       - name: Download Resources
-        if: steps.restore-downloader.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true' || failure()
+        if: steps.restore-downloader.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true'
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
+          echo "Current directory: $(pwd)"
           cd unpack/downloader
+          echo "Now in: $(pwd)"
+          source ../.venv/bin/activate
           echo "Running downloader..."
-          cd downloader
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --force --verbose
           echo "Files after download:"
           ls -lh output/
