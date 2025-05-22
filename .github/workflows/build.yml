@@ -157,9 +157,9 @@ jobs:
         run: |
           cd unpack
           source .venv/bin/activate
-          python src/gfunpack/__main__.py downloader/output output --no-clean
-          python src/gfunpack/audio.py downloader/output audio --concurrency 4
-          python src/gfunpack/backgrounds.py downloader/output images --concurrency 
+          # Запуск через модуль (корень проекта — unpack/)
+          python -m src.gfunpack.__main__ downloader/output output --no-clean
+          python -m src.gfunpack.audio downloader/output audio --concurrency 4
 
 #      - name: Process Images
 #        run: |

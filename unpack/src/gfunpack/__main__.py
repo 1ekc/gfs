@@ -1,14 +1,16 @@
 import argparse
 import os
-import pathlib
 import sys
+import pathlib
 
-# Добавляем путь к модулям
-current_dir = pathlib.Path(__file__).parent.parent  # Если __main__.py в src/gfunpack
-sys.path.insert(0, str(current_dir / 'src'))
+# Текущая директория скрипта (unpack/src/gfunpack/)
+current_dir = pathlib.Path(__file__).parent
+
+# Добавляем путь к корню проекта (unpack/)
+sys.path.insert(0, str(current_dir.parent.parent))
 
 # Локальные импорты
-from src.gfunpack import audio, backgrounds, characters, chapters, mapper, prefabs, stories
+from gfunpack import audio, backgrounds, characters, chapters, mapper, prefabs, stories
 
 
 def main():
