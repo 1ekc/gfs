@@ -1,14 +1,13 @@
-import argparse
-import os
 import sys
 import pathlib
 
-# Добавляем путь к корню проекта (unpack/)
-root_dir = pathlib.Path(__file__).parent.parent.parent
+# Корень проекта: unpack/
+root_dir = pathlib.Path(__file__).parent.parent.parent  # unpack/src/gfunpack → unpack/
 sys.path.insert(0, str(root_dir))
 
-from gfunpack.backgrounds import BackgroundCollection
-from gfunpack import audio, characters, chapters, mapper, prefabs, stories
+# Теперь импортируем модули
+from src.gfunpack.backgrounds import BackgroundCollection
+from src.gfunpack import audio, characters, chapters, mapper, prefabs, stories
 
 def main():
     parser = argparse.ArgumentParser(description='GFUnpack - инструмент для распаковки ресурсов')
