@@ -26,13 +26,33 @@ logger = logging.getLogger(__name__)
 
 _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png$')
 
+
 def read_text_asset(ab_path: Path, asset_path: str) -> str:
-    """Чтение текстового ассета из .ab файла"""
-    env = UnityPy.load(str(ab_path))
-    for obj in env.objects:
-        if obj.type.name == 'TextAsset' and obj.container == asset_path:
-            return obj.read().m_Script.tobytes().decode('utf-8')
-    raise FileNotFoundError(f"Ассет {asset_path} не найден в {ab_path}")
+    """Читает текстовый ассет из asset bundle с обработкой разных форматов"""
+    try:
+        # Загрузка asset bundle
+        env = UnityPy.load(str(ab_path))
+
+        # Поиск текстового ассета
+        text_asset = env.get(asset_path)
+        if not text_asset:
+            raise ValueError(f"Ассет {asset_path} не найден в {ab_path}")
+
+        # Получение содержимого с учетом разных форматов Unity
+        script_data = text_asset.read().m_Script
+
+        if hasattr(script_data, 'tobytes'):  # Старые версии Unity
+            return script_data.tobytes().decode('utf-8')
+        elif isinstance(script_data, (str, bytes)):  # Новые версии
+            return script_data if isinstance(script_data, str) else script_data.decode('utf-8')
+        elif hasattr(script_data, 'bytes'):  # Альтернативный формат
+            return script_data.bytes.decode('utf-8')
+        else:  # Резервный вариант
+            return str(script_data)
+
+    except Exception as e:
+        logger.error(f"Ошибка чтения ассета {asset_path}: {str(e)}")
+        raise
 
 def run_pngquant(image_path: Path):
     """Запуск pngquant для оптимизации изображения"""
@@ -122,12 +142,29 @@ class BackgroundCollection:
         return None
 
     def _extract_bg_profiles(self) -> List[str]:
+        """Извлекает список профилей фонов из указанного файла в asset bundle"""
         try:
+            # Чтение текстового ассета из указанного пути
             content = read_text_asset(
                 self.input_path / 'asset_textavg.ab',
                 'assets/resources/dabao/avgtxt/profiles.txt'
             )
+
+            # Обработка содержимого в зависимости от формата
+            if content.startswith('{') and content.endswith('}'):  # JSON формат
+                try:
+                    data = json.loads(content)
+                    if isinstance(data, dict) and 'profiles' in data:
+                        return data['profiles']
+                    elif isinstance(data, list):
+                        return data
+                except json.JSONDecodeError as e:
+                    logger.error(f"Ошибка парсинга JSON: {str(e)}")
+                    raise
+
+            # Построчная обработка для текстового формата
             return [line.strip() for line in content.split('\n') if line.strip()]
+
         except Exception as e:
             logger.error(f"Ошибка извлечения профилей: {str(e)}")
             raise
