@@ -8,15 +8,13 @@ current_dir = pathlib.Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 # Локальные импорты
-from . import (
-    audio,
-    backgrounds,
-    chapters,
-    characters,
-    mapper,
-    prefabs,
-    stories
-)
+import audio
+import backgrounds
+import chapters
+import characters
+import mapper
+import prefabs
+import stories
 
 
 def main():
@@ -56,12 +54,14 @@ def main():
     character_mapper.write_indices()
 
     # Обработка аудио
-    bgm = audio.BGM(
-        directory=downloaded,
-        destination=str(destination.joinpath('audio')),
+    bgm = audio.AudioProcessor(
+        input_path=downloaded,
+        output_path=str(destination.joinpath('audio')),
+        force=False,
         concurrency=cpus,
         clean=not args.no_clean
     )
+    bgm.process()
     bgm.save()
 
     # Обработка историй
