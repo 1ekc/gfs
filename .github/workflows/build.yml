@@ -10,7 +10,7 @@ permissions:
 jobs:
   documentation:
     runs-on: ubuntu-latest
-    timeout-minutes: 180  # Увеличенный таймаут
+    timeout-minutes: 180
 
     steps:
       - uses: actions/checkout@v4
@@ -59,22 +59,33 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gf-downloader-
 
+      - name: Log Cache Restoration
+        if: steps.restore-downloader.outputs.cache-hit == 'true'
+        run: |
+          echo "✅ Cache restored successfully"
+          echo "Restored files in output/:"
+          ls -lh unpack/downloader/output/
+          echo "Restored files in resdata/:"
+          ls -lh unpack/downloader/resdata/
+          echo "Checking critical files:"
+          [ -f unpack/downloader/output/AVG.acb.dat ] && echo "✔ AVG.acb.dat found ($(du -h unpack/downloader/output/AVG.acb.dat | cut -f1))" || echo "❌ AVG.acb.dat MISSING"
+          [ -f unpack/downloader/resdata/us_resdata.json ] && echo "✔ us_resdata.json found" || echo "❌ us_resdata.json MISSING"
+
       - name: Download Resources
         if: steps.restore-downloader.outputs.cache-hit != 'true'
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
           cd unpack/downloader
-          if [ ! -f "config.json5" ]; then
-            echo "::error::Файл config.json5 не найден!"
-            exit 1
-          fi
-          ln -sf config.json5 config.json
-          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
-          if [ ! -f "resdata/us_resdata.json" ]; then
-            echo "::error::Ошибка загрузки файлов"
-            exit 1
-          fi
+          echo "Files before download:"
+          ls -lh output/ || mkdir -p output
+          echo "Running downloader..."
+          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --verbose
+          echo "Files after download:"
+          ls -lh output/
+          echo "Critical files check:"
+          [ -f output/AVG.acb.dat ] && echo "✔ AVG.acb.dat downloaded ($(du -h output/AVG.acb.dat | cut -f1))" || echo "❌ AVG.acb.dat FAILED TO DOWNLOAD"
+          [ -f resdata/us_resdata.json ] && echo "✔ us_resdata.json downloaded" || echo "❌ us_resdata.json FAILED TO DOWNLOAD"
 
       - name: Save Downloader Cache
         if: always() && steps.restore-downloader.outputs.cache-hit != 'true'
@@ -90,18 +101,32 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: unpack/images
-          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/backgrounds.py') }}
+          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/backgrounds.py') }}
           restore-keys: |
             ${{ runner.os }}-gf-images-
+
+      - name: Restore Audio Cache
+        id: restore-audio
+        uses: actions/cache/restore@v4
+        with:
+          path: unpack/audio
+          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/audio.py') }}
+          restore-keys: |
+            ${{ runner.os }}-gf-audio-
 
       - name: Process Resources
         if: steps.restore-images.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true'
         run: |
           cd unpack
           source .venv/bin/activate
-          python src/gfunpack/audio.py downloader/output ../audio --concurrency 4
-          python src/gfunpack/backgrounds.py downloader/output ../images --concurrency 4
-          python src/gfunpack/characters.py downloader/output ../images --concurrency 4
+          echo "Starting resource processing..."
+          echo "Running audio processor..."
+          python src/gfunpack/audio.py "$(pwd)/downloader/output" "$(pwd)/../audio" --concurrency 4
+          echo "Running backgrounds processor..."
+          python src/gfunpack/backgrounds.py "$(pwd)/downloader/output" "$(pwd)/../images" --concurrency 4
+          echo "Running characters processor..."
+          python src/gfunpack/characters.py "$(pwd)/downloader/output" "$(pwd)/../images" --concurrency 4
+          echo "Resource processing completed"
 
       - name: Save Images Cache
         if: always() && steps.restore-images.outputs.cache-hit != 'true'
@@ -109,22 +134,6 @@ jobs:
         with:
           path: unpack/images
           key: ${{ steps.restore-images.outputs.cache-primary-key }}
-
-      - name: Restore Audio Cache
-        id: restore-audio
-        uses: actions/cache/restore@v4
-        with:
-          path: unpack/audio
-          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/audio.py') }}
-          restore-keys: |
-            ${{ runner.os }}-gf-audio-
-
-      - name: Process Audio
-        if: steps.restore-audio.outputs.cache-hit != 'true'
-        run: |
-          cd unpack
-          source .venv/bin/activate
-          python -m audio downloader/output audio --concurrency 4
 
       - name: Save Audio Cache
         if: always() && steps.restore-audio.outputs.cache-hit != 'true'
@@ -137,8 +146,13 @@ jobs:
         run: |
           cd unpack
           mkdir -p ../src/assets ../public
+          echo "Copying JSON files..."
           cp audio/audio.json images/backgrounds.json images/characters.json ../src/assets/
+          echo "Moving assets to public..."
           mv audio images ../public/
+          echo "Final assets structure:"
+          ls -lh ../src/assets/
+          ls -lh ../public/
 
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
