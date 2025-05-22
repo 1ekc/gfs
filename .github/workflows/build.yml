@@ -158,7 +158,7 @@ jobs:
           cd unpack
           source .venv/bin/activate
           # Запуск основного скрипта (он обрабатывает всё)
-          python -m src.gfunpack.__main__ downloader/output output --no-clean
+          python -m src.gfunpack.__main__ downloader/output -o output --no-clean
 
 #      - name: Process Images
 #        run: |
