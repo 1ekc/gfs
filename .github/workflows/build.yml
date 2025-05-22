@@ -91,6 +91,7 @@ jobs:
         run: |
           cd unpack/downloader
           echo "Running downloader..."
+          cd downloader
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --force --verbose
           echo "Files after download:"
           ls -lh output/
