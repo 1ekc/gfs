@@ -1,30 +1,24 @@
-import argparse
-import json
 import logging
 import os
 import pathlib
 import re
 import subprocess
 import threading
-from pathlib import Path
-from typing import Dict, List, Tuple
-from multiprocessing import cpu_count
+import typing
+
 import tqdm
 import UnityPy
 from UnityPy.classes import Sprite, Texture2D
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('character_unpack.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+from gfunpack import database, prefabs, utils
+
+_logger = logging.getLogger('gfunpack.character')
+_info = _logger.info
+_warning = _logger.warning
 
 _character_file_regex = re.compile('^character_(.*)\\.ab$')
+
+
 _alpha_postfixes = {
     'ar18/AR18_N_1.png': 'ar18/AR18_N_0.png',
     'ar18/AR18_N_2.png': 'ar18/AR18_N_0.png',
@@ -34,148 +28,271 @@ _alpha_postfixes = {
 }
 
 
-def run_pngquant(image_path: Path):
-    """Запуск pngquant для оптимизации изображения"""
-    try:
-        subprocess.run(['pngquant', '--force', '--skip-if-larger', '--ext', '.png', str(image_path)],
-                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    except (FileNotFoundError, subprocess.CalledProcessError) as e:
-        logger.warning(f"Ошибка pngquant: {str(e)}")
-
-
 class CharacterCollection:
-    """Класс для обработки персонажей"""
+    directory: pathlib.Path
 
-    CACHE_FILE = "characters.json"
-    CHUNK_SIZE = 5
+    destination: pathlib.Path
 
-    def __init__(self, input_path: str, output_path: str, pngquant: bool = False,
-                 concurrency: int = 4, force: bool = False):
-        self.input_path = Path(input_path)
-        self.output_path = Path(output_path)
-        self.pngquant = pngquant
-        self.concurrency = min(concurrency, cpu_count())
+    required_path_ids: set[int]
+
+    exported_images: dict[str, pathlib.Path]
+
+    db: database.Database
+
+    character_index: dict[str, list[pathlib.Path]]
+
+    pngquant: bool
+
+    force: bool
+
+    concurrency: int
+
+    verbose: bool
+
+    _semaphore: threading.Semaphore
+
+    _i: int
+
+    def __init__(self, directory: str, destination: str, prefab_indices: prefabs.Prefabs,
+                 pngquant: bool = False, force: bool = False, concurrency=8, verbose: bool = False):
+        self.image_details = prefab_indices.details
+        self.required_path_ids = set(
+            i
+            for details in prefab_indices.details.values()
+            for detail in details
+            for i in [detail.path_id, detail.alpha_path_id]
+            if i != 0
+        )
+        self.directory = utils.check_directory(directory)
+        self.destination = utils.check_directory(destination, create=True)
+        db_path = str(self.destination.parent.joinpath('image.db').resolve())
+        _info('database: %s', db_path)
+        self.db = database.Database(db_path, directory)
+        self._i = 0
+
+        self.exported_images = {}
+        self.character_index = {}
+        self.pngquant = utils.test_pngquant(pngquant)
         self.force = force
-        self.extracted = {}
-        self._semaphore = threading.Semaphore(self.concurrency)
+        self.concurrency = concurrency
+        self.verbose = verbose
+        self._semaphore = threading.Semaphore(concurrency)
+        self._test_commands()
 
-        if not self.input_path.exists():
-            raise FileNotFoundError(f"Директория не найдена: {self.input_path}")
-        self.output_path.mkdir(parents=True, exist_ok=True)
+    def _unique_id(self):
+        self._i += 1
+        return self._i
 
-    def _merge_alpha_channel(self, directory: Path, name: str, sprite: Texture2D, alpha_sprite: Texture2D):
+    def _test_commands(self) -> None:
+        try:
+            subprocess.run(['magick', '--help'], stdout=subprocess.DEVNULL).check_returncode()
+        except FileNotFoundError as e:
+            raise FileNotFoundError('imagemagick is required to merge alpha layers', e)
+
+    def _extract_pics(self, bundle: UnityPy.Environment):
+        """
+        Extracts all the sprites and textures from the given bundle.
+        """
+        path_id_index: dict[int, Texture2D | Sprite] = {}
+        for obj in bundle.objects:
+            if obj.type.name != 'Sprite' and obj.type.name != 'Texture2D':
+                continue
+            if obj.path_id == 0 or obj.path_id not in self.required_path_ids:
+                continue
+            typed = typing.cast(Sprite | Texture2D, obj.read())
+            path_id_index[obj.path_id] = typed
+        return path_id_index
+
+    @classmethod
+    def _has_alpha_channel(cls, pics: list[pathlib.Path]):
+        output = subprocess.check_output(
+            ['magick', 'identify', '-format', '%[opaque]\\n']
+            + [pic.resolve() for pic in pics],
+            text=True,
+        )
+        return [line.lower() == 'false' for line in output.split('\n') if line != '']
+
+    def _get_image_destination(self, character: str, name: str | None = None):
+        directory = self.destination.joinpath(character)
+        if name is None:
+            return directory.resolve()
+        return directory.joinpath(name).resolve()
+
+    def _merge_alpha_channel(self, directory: pathlib.Path, name: str, path_id: int, key: str,
+                             sprite: Texture2D, alpha_sprite: Texture2D):
         try:
             directory.mkdir(parents=True, exist_ok=True)
-            image_path = directory / f"{name}.png"
+            image_path = directory.joinpath(f'{name}.png').resolve()
+            self.exported_images[key] = image_path
 
             if not self.force and image_path.exists():
                 return image_path
-
-            temp_files = []
-            try:
-                sprite_path = directory / f"{name}_temp.png"
-                alpha_path = directory / f"{name}_alpha_temp.png"
+            i = self._unique_id()
+            sprite_path = directory.joinpath(f'{name}.sprite-{i}.png')
+            alpha_path = directory.joinpath(f'{name}.alpha-{i}.png')
+            alpha_dims_path = directory.joinpath(f'{name}.dims-{i}.png')
+            if alpha_sprite.name.endswith('_Alpha'):
                 sprite.image.save(sprite_path)
                 alpha_sprite.image.save(alpha_path)
-                temp_files.extend([sprite_path, alpha_path])
+                self._merge_files(sprite_path, alpha_path, alpha_dims_path, image_path)
+                # remove intermediate files
+                for file in (sprite_path, alpha_path, alpha_dims_path):
+                    os.remove(file)
+            else:
+                alpha_sprite.image.save(image_path)
+                if not self._has_alpha_channel([image_path])[0]:
+                    sprite.image.save(image_path)
+                if not self._has_alpha_channel([image_path])[0]:
+                    _warning('no alpha channel: %s', image_path)
+            utils.pngquant(image_path, use_pngquant=self.pngquant)
+        finally:
+            self._semaphore.release()
 
-                subprocess.run([
-                    'magick', sprite_path, alpha_path,
-                    '-compose', 'copy-opacity', '-composite',
-                    image_path
-                ], check=True)
+    @classmethod
+    def _merge_files(cls, sprite_path: pathlib.Path, alpha_path: pathlib.Path,
+                     alpha_dims_path: pathlib.Path, image_path: pathlib.Path):
+        # resize to the same dimensions
+        subprocess.run([
+            'magick',
+            sprite_path,
+            '-set',
+            'option:dims',
+            '%wx%h',
+            alpha_path,
+            '-delete',
+            '0',
+            '-resize',
+            '%[dims]',
+            alpha_dims_path,
+        ]).check_returncode()
+        # copy the alpha channel
+        subprocess.run([
+            'magick',
+            sprite_path,
+            alpha_dims_path,
+            '-compose',
+            'copy-opacity',
+            '-composite',
+            image_path,
+        ]).check_returncode()
 
-                if self.pngquant:
-                    run_pngquant(image_path)
+    def read_single(self, info: database.Image):
+        path = self.db.get_bundle_path(info.bundle)
+        bundle = UnityPy.load(str(path))
+        for obj in bundle.objects:
+            if obj.path_id == info.path_id:
+                return typing.cast(Texture2D | Sprite, obj.read())
+        raise ValueError(f'no object at path_id {info.path_id}')
 
-                return image_path
-            finally:
-                for f in temp_files:
-                    f.unlink(missing_ok=True)
-        except Exception as e:
-            logger.error(f"Ошибка объединения {name}: {str(e)}")
-            return None
-
-    def _process_sprite_chunk(self, sprites: List[Tuple[str, int, Texture2D, Texture2D]]):
-        with tqdm.tqdm(total=len(sprites), desc="Обработка спрайтов") as bar:
-            for character, sprite_id, sprite, alpha in sprites:
+    def _try_merging_alpha(self, path_id_index: dict[int, Texture2D | Sprite], sprites: list[int]):
+        for character, details in (bar := tqdm.tqdm(self.image_details.items())):
+            bar.set_description(character)
+            for i, detail in enumerate(details):
+                assert character.lower() == detail.name.lower()
+                path_id = detail.path_id
+                alpha_path_id = detail.alpha_path_id
+                if path_id not in path_id_index:
+                    path_id = 0
+                if alpha_path_id not in path_id_index:
+                    alpha_path_id = 0
+                if path_id == 0:
+                    if alpha_path_id == 0:
+                        _warning(f'no image at all: {character}: {detail}')
+                        continue
+                    alpha = path_id_index[alpha_path_id]
+                    if alpha.name.endswith('_Alpha'):
+                        name = alpha.name[:-6]
+                        info = self.db.find_by_name(name)
+                        if info is None:
+                            _warning(f'no image for _Alpha: {character}: {name} {detail}')
+                            continue
+                        path_id_index[info.path_id] = self.read_single(info)
+                        path_id = info.path_id
+                        detail.path_id = path_id
+                    else:
+                        path_id = alpha_path_id
+                        detail.path_id = alpha_path_id
+                if alpha_path_id == 0:
+                    _warning(f'no alpha channel: {character}: {detail}')
+                    alpha_path_id = path_id
                 self._semaphore.acquire()
+                image = path_id_index[path_id]
+                alpha_image = path_id_index[alpha_path_id]
+                name = image.name
+                assert name is not None and name != ''
                 threading.Thread(
-                    target=self._process_single_sprite,
-                    args=(character, sprite_id, sprite, alpha, bar),
-                    daemon=True
+                    target=self._merge_alpha_channel,
+                    args=(
+                        self._get_image_destination(character.lower()),
+                        name,
+                        path_id,
+                        f'{character}/{i}',
+                        image,
+                        alpha_image,
+                    ),
                 ).start()
 
         for _ in range(self.concurrency):
-            self._semaphore.acquire()
-
-    def _process_single_sprite(self, character: str, sprite_id: int,
-                               sprite: Texture2D, alpha: Texture2D, bar: tqdm.tqdm):
-        try:
-            char_dir = self.output_path / character.lower()
-            result = self._merge_alpha_channel(char_dir, f"{sprite_id}", sprite, alpha)
-            if result:
-                self.extracted[f"{character}/{sprite_id}"] = str(result.relative_to(self.output_path))
-        finally:
-            bar.update()
+            self._semaphore.acquire(timeout=120/self.concurrency)
+        for _ in range(self.concurrency):
             self._semaphore.release()
 
-    def _apply_alpha_postfixes(self):
-        """Применение специальных правил для альфа-каналов"""
-        for src, dst in _alpha_postfixes.items():
-            src_path = self.output_path / src
-            dst_path = self.output_path / dst
-            if src_path.exists() and dst_path.exists():
-                try:
-                    src_path.unlink()
-                    os.link(dst_path, src_path)
-                except Exception as e:
-                    logger.error(f"Ошибка применения постфикса {src}->{dst}: {str(e)}")
+    def _postfix(self):
+        image = self._get_image_destination('npc-sakura', 'Pic_Sakura_D.png')
+        if not self._has_alpha_channel([image])[0]:
+            source = image.rename(image.with_suffix('.tmp.png'))
+            # crop the image, parameters manually acquired
+            subprocess.run([
+                'magick',
+                source,
+                '-crop',
+                '809x1367+782+13',
+                image,
+            ]).check_returncode()
+            source.unlink()
+        for image_name, alpha_name in _alpha_postfixes.items():
+            image = self._get_image_destination(image_name)
+            alpha = self._get_image_destination(alpha_name)
+            source = image.with_suffix('.tmp.png')
+            dims = image.with_suffix('.dims.png')
+            image.rename(source)
+            self._merge_files(source, alpha, dims, image)
+            for f in [source, dims]:
+                f.unlink()
 
     def extract(self):
-        """Основной метод извлечения"""
-        env = UnityPy.load(str(self.input_path / 'resource_character.ab'))
+        l = list(self.required_path_ids)
+        images = self.db.get_by_path_ids(l)
+        sprites = self.db.get_by_path_ids(l, True)
+        bundles = set(image.bundle for image in images).union(
+            set(sprite.bundle for sprite in sprites),
+        )
+        path_id_index: dict[int, Texture2D | Sprite] = {}
+        for bundle_name in (bar := tqdm.tqdm(bundles)):
+            path = self.db.get_bundle_path(bundle_name)
+            file = str(path)
+            if file.endswith('resourcefairy.ab'):
+                group = 'fairy'
+            else:
+                # Group images by character names
+                match = _character_file_regex.match(file)
+                group = bundle_name if match is None else match.group(1)
+            bar.set_description(group)
+            bundle = UnityPy.load(file)
+            extracted = self._extract_pics(bundle)
+            for path_id, img in extracted.items():
+                if path_id in path_id_index and 'avgpicprefab' in bundle_name:
+                    continue
+                path_id_index[path_id] = img
 
-        sprites = []
-        for obj in env.objects:
-            if obj.type.name in ('Sprite', 'Texture2D'):
-                data = obj.read()
-                if hasattr(data, 'name') and data.name:
-                    sprites.append((data.name, obj.path_id, data))
-
-        for i in range(0, len(sprites), self.CHUNK_SIZE):
-            self._process_sprite_chunk(sprites[i:i + self.CHUNK_SIZE])
-
-        self._apply_alpha_postfixes()
-
-    def save(self) -> Path:
-        output_path = self.output_path.parent / self.CACHE_FILE
-        with output_path.open('w', encoding='utf-8') as f:
-            json.dump(self.extracted, f, ensure_ascii=False, indent=2)
-        return output_path
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Обработка персонажей игры')
-    parser.add_argument('input_dir', help='Директория с ресурсами')
-    parser.add_argument('output_dir', help='Целевая директория')
-    parser.add_argument('--pngquant', action='store_true', help='Использовать pngquant')
-    parser.add_argument('--force', action='store_true', help='Принудительная перезапись')
-    parser.add_argument('--concurrency', type=int, default=4,
-                        help='Количество потоков')
-    args = parser.parse_args()
-
-    processor = CharacterCollection(
-        directory=args.input_dir,
-        destination=args.output_dir,
-        pngquant=args.pngquant,
-        force=args.force,
-        concurrency=args.concurrency
-    )
-    processor.extract()
-    result_path = processor.save()
-    print(f"Обработка завершена. Результаты: {result_path}")
-
-
-if __name__ == "__main__":
-    main()
+        if path_id_index.keys() != self.required_path_ids:
+            non_alpha_ids = set(
+                detail.path_id
+                for details in self.image_details.values()
+                for detail in details
+                if detail.path_id != 0
+            )
+            # transparency already merged into the alpha image
+            assert (self.required_path_ids - path_id_index.keys()).issubset(non_alpha_ids)
+        self._try_merging_alpha(path_id_index, [s.path_id for s in sprites])
+        self._postfix()
