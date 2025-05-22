@@ -4,8 +4,8 @@ import pathlib
 import sys
 
 # Добавляем путь к модулям
-current_dir = pathlib.Path(__file__).parent
-sys.path.insert(0, str(current_dir))
+current_dir = pathlib.Path(__file__).parent.parent  # Если __main__.py в src/gfunpack
+sys.path.insert(0, str(current_dir / 'src'))
 
 # Локальные импорты
 from src.gfunpack import audio, backgrounds, characters, chapters, mapper, prefabs, stories

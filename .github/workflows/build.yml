@@ -62,7 +62,8 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-          pip install pyjson5 pillow UnityPy tqdm
+#          pip install pyjson5 pillow UnityPy tqdm
+          pip install -r downloader/requirements.txt  # Если файл остался в downloader
           echo "Python dependencies installed"
 
       - name: Restore Downloader Cache
@@ -153,25 +154,20 @@ jobs:
           [ -d unpack/audio/acb ] && echo "✔ acb directory exists" || (echo "❌ acb directory missing - invalidating cache" && exit 1)
           echo "✅ Audio cache is valid"
 
-#      - name: Process Resources
-#        if: steps.restore-images.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true' || failure()
-#        run: |
-#          cd unpack
-#          source .venv/bin/activate
-#          echo "Starting resource processing..."
-#          echo "Running audio processor..."
-#          python src/gfunpack/audio.py "$(pwd)/downloader/output" "$(pwd)/audio" --concurrency 4
-#          echo "Running backgrounds processor..."
-#          python src/gfunpack/backgrounds.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
-#          echo "Running characters processor..."
-#          python src/gfunpack/characters.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
-#          echo "Resource processing completed"
-      - name: Process Images
+      - name: Process Resources
         run: |
           cd unpack
           source .venv/bin/activate
-          python tests/test_backgrounds.py
-          python tests/test_characters.py
+          python src/gfunpack/__main__.py downloader/output output --no-clean
+          python src/gfunpack/audio.py downloader/output audio --concurrency 4
+          python src/gfunpack/backgrounds.py downloader/output images --concurrency 
+
+#      - name: Process Images
+#        run: |
+#          cd unpack
+#          source .venv/bin/activate
+#          python tests/test_backgrounds.py
+#          python tests/test_characters.py
 
       - name: Save Images Cache
         if: always() && (steps.restore-images.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
