@@ -62,7 +62,6 @@ jobs:
           python -m venv .venv
           source .venv/bin/activate
           python -m pip install --upgrade pip
-#          pip install pyjson5 pillow UnityPy tqdm
           pip install -r downloader/requirements.txt  # Если файл остался в downloader
           echo "Python dependencies installed"
 
