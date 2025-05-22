@@ -1,184 +1,123 @@
-#!/usr/bin/env python3
-"""
-Backgrounds processor for GFL assets
-"""
-
-import os
-import subprocess
-import argparse
 import json
 import logging
+import pathlib
 import re
-import sys
-from multiprocessing import Pool, cpu_count
-from pathlib import Path
-from typing import Dict, List, Optional, Union, Tuple
+import threading
+import typing
 
-# Добавляем путь к проекту в PYTHONPATH
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+import tqdm
+import UnityPy
+from UnityPy.classes import Sprite, TextAsset, Texture2D
 
-try:
-    import UnityPy
-    from tqdm import tqdm
-    from UnityPy.classes import Sprite, Texture2D, TextAsset
-except ImportError:
-    subprocess.run([sys.executable, "-m", "pip", "install", "UnityPy", "tqdm"])
-    import UnityPy
-    from tqdm import tqdm
-    from UnityPy.classes import Sprite, Texture2D, TextAsset
+from gfunpack import utils
 
-# Настройка логирования
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler('background_unpack.log'),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger('gfunpack.utils')
+_warning = _logger.warning
 
-_avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png$')
+_avgtexture_regex = re.compile('^assets/resources/dabao/avgtexture/([^/]+)\\.png$')
 
 
-def setup_environment():
-    """Установка необходимых зависимостей"""
-    try:
-        import UnityPy
-        from tqdm import tqdm
-    except ImportError:
-        subprocess.run([sys.executable, "-m", "pip", "install", "UnityPy", "tqdm"])
+class BackgroundCollection:
+    directory: pathlib.Path
 
+    destination: pathlib.Path
 
-def find_txt_files(base_path: Path) -> Dict[str, Path]:
-    """Находит все txt файлы в указанной директории"""
-    txt_files = {}
-    for txt_path in base_path.glob('**/*.txt'):
-        txt_files[txt_path.stem.lower()] = txt_path
-    return txt_files
+    profile_asset: pathlib.Path
 
+    resource_files: list[pathlib.Path]
 
-def read_text_asset(ab_path: Path, txt_files: Dict[str, Path] = None) -> str:
-    """Извлекает текстовые ассеты из asset bundle или локальных файлов"""
-    # Сначала пробуем найти в локальных файлах
-    if txt_files:
-        stem = ab_path.stem.lower()
-        if stem in txt_files:
-            with open(txt_files[stem], 'r', encoding='utf-8') as f:
-                return f.read()
+    extracted: dict[int, pathlib.Path | None]
 
-    # Если не нашли в файлах, пробуем извлечь из asset bundle
-    try:
-        env = UnityPy.load(str(ab_path))
-        for obj in env.objects:
-            if obj.type.name == "TextAsset":
-                data = obj.read()
-                if hasattr(data, 'm_Script'):
-                    script = data.m_Script
-                    if isinstance(script, bytes):
-                        return script.decode('utf-8')
-                    return str(script)
-        raise ValueError(f"No TextAsset found in {ab_path.name}")
-    except Exception as e:
-        logger.error(f"Error reading {ab_path}: {str(e)}")
-        raise
+    pngquant: bool
 
+    force: bool
 
-class BackgroundCollection:  # Было BackgroundProcessor
-    """Обработчик фоновых изображений"""
+    concurrency: int
 
-    def __init__(self, input_dir: str, output_dir: str, pngquant: bool = False, concurrency: int = 4):
-        self.input_path = Path(input_dir)
-        self.output_path = Path(output_dir)
-        self.pngquant = pngquant
+    _semaphore: threading.Semaphore
+
+    def __init__(self, directory: str, destination: str, pngquant: bool = False, force: bool = False, concurrency: int = 8) -> None:
+        self.directory = utils.check_directory(directory)
+        self.destination = utils.check_directory(pathlib.Path(destination).joinpath('background'), create=True)
+        self.pngquant = utils.test_pngquant(pngquant)
+        self.force = force
         self.concurrency = concurrency
-        self.output_path.mkdir(parents=True, exist_ok=True)
+        self._semaphore = threading.Semaphore(concurrency)
+        self.profile_asset = self.directory.joinpath('asset_textavg.ab')
+        self.resource_files = list(self.directory.glob('resource_avgtexture*.ab'))
+        self.extracted = self.extract()
+
+    def _extract_bg_profiles(self) -> list[str]:
+        content = utils.read_text_asset(self.profile_asset, 'assets/resources/dabao/avgtxt/profiles.txt')
+        return [l.strip() for l in content.split('\n')]
+
+    def _save_image(self, extracted: dict[str, pathlib.Path], name: str, image: Sprite | Texture2D):
+        image_path = self.destination.joinpath(f'{name}.png')
+        if self.force or not image_path.is_file():
+            image.image.save(image_path)
+            utils.pngquant(image_path, use_pngquant=self.pngquant)
+        extracted[name] = image_path
+        self._semaphore.release()
+
+    def _extract_files(self, resources: dict[str, Sprite | Texture2D]):
+        extracted: dict[str, pathlib.Path] = {}
+        for name, image in resources.items():
+            self._semaphore.acquire()
+            threading.Thread(target=self._save_image, args=(extracted, name, image)).start()
+        for _ in range(self.concurrency):
+            self._semaphore.acquire()
+        for _ in range(self.concurrency):
+            self._semaphore.release()
+        return extracted
+
+    def _extract_bg_pics(self):
+        extracted: dict[str, pathlib.Path] = {}
+        for file in tqdm.tqdm(self.resource_files):
+            files: dict[str, Sprite | Texture2D] = {}
+            asset = UnityPy.load(str(file))
+            for o in tqdm.tqdm(asset.objects, leave=False):
+                if o.container is None:
+                    continue
+                if o.type.name != 'Sprite' and o.type.name != 'Texture2D':
+                    continue
+                match = _avgtexture_regex.match(o.container)
+                if match is None:
+                    continue
+                name = match.group(1).lower()
+                data = typing.cast(Sprite | Texture2D, o.read())
+                if name not in files:
+                    files[name] = data
+                else:
+                    # prioritize Texture2D assets
+                    if files[name].type.name == 'Sprite':
+                        files[name] = data
+            extracted.update(self._extract_files(files))
+        return extracted
+
+    def extract(self):
+        bg_profiles = self._extract_bg_profiles()
+        pics = self._extract_bg_pics()
+        merged: dict[int, pathlib.Path | None] = {}
+        matched: list[pathlib.Path] = []
+        for i, name in enumerate(bg_profiles):
+            match = pics.get(name.lower())
+            merged[i] = match
+            if match is not None:
+                matched.append(match.resolve())
+            else:
+                _warning('bg %s not found', name)
+        unmatched = set(p.resolve() for p in pics.values()) - set(matched)
+        for path in unmatched:
+            merged[-len(merged)] = path
+        return merged
 
     def save(self):
-        """Основной процесс обработки"""
-        try:
-            resource_files = list(self.input_path.glob('resource_avgtexture*.ab'))
-            if not resource_files:
-                raise FileNotFoundError("No resource_avgtexture*.ab files found")
-
-            backgrounds = self._extract_backgrounds(resource_files)
-            result_file = self.output_path / 'backgrounds.json'
-            with open(result_file, 'w', encoding='utf-8') as f:
-                json.dump(backgrounds, f, ensure_ascii=False, indent=2)
-            return result_file
-
-        except Exception as e:
-            logger.error(f"Processing failed: {str(e)}")
-            sys.exit(1)
-
-    def _extract_backgrounds(self, resource_files: List[Path]) -> Dict:
-        """Извлечение фонов из файлов ресурсов"""
-        # Получаем профили из asset_textavg.ab или локальных файлов
-        profiles = self._get_profiles()
-
-        # Обрабатываем фоновые изображения
-        backgrounds = {}
-        with Pool(cpu_count()) as pool:
-            results = pool.map(self._process_file, resource_files)
-
-        for result in results:
-            backgrounds.update(result)
-
-        # Сопоставляем с профилями
-        return {i: backgrounds.get(name.lower()) for i, name in enumerate(profiles)}
-
-    def _get_profiles(self) -> List[str]:
-        """Получает список профилей из файла или asset bundle"""
-        profiles_path = self.input_path / 'asset_textavg.ab'
-        if not profiles_path.exists() and self.txt_files:
-            # Пробуем найти в txt файлах
-            if 'profiles' in self.txt_files:
-                with open(self.txt_files['profiles'], 'r', encoding='utf-8') as f:
-                    content = f.read()
-            else:
-                raise FileNotFoundError("Profiles file not found")
-        else:
-            content = read_text_asset(profiles_path, self.txt_files)
-
-        # Обработка содержимого
-        if content.startswith('{') and content.endswith('}'):  # JSON
-            data = json.loads(content)
-            return data.get('profiles', []) if isinstance(data, dict) else data
-        return [line.strip() for line in content.split('\n') if line.strip()]
-
-    def _process_file(self, file_path: Path) -> Dict:
-        """Обработка одного файла ресурсов"""
-        try:
-            env = UnityPy.load(str(file_path))
-            file_results = {}
-
-            for obj in env.objects:
-                if obj.container and _avgtexture_regex.match(obj.container):
-                    name = _avgtexture_regex.match(obj.container).group(1).lower()
-                    data = obj.read()
-                    if isinstance(data, (Sprite, Texture2D)):
-                        output_path = self.output_path / f"{name}.png"
-                        data.image.save(output_path)
-                        file_results[name] = str(output_path)
-
-            return file_results
-        except Exception as e:
-            logger.error(f"Error processing {file_path.name}: {str(e)}")
-            return {}
-
-
-def main():
-    parser = argparse.ArgumentParser(description='Process background images')
-    parser.add_argument('--input', required=True, help='Input directory with .ab files')
-    parser.add_argument('--output', required=True, help='Output directory for results')
-    parser.add_argument('--txt-data', help='Path to gf-data-rus/asset/avgtxt directory')
-    args = parser.parse_args()
-
-    setup_environment()
-    processor = BackgroundProcessor(args.input, args.output, args.txt_data)
-    result_path = processor.process()
-    print(f"Processing complete. Results saved to: {result_path}")
-
-
-if __name__ == "__main__":
-    main()
+        s = json.dumps(
+            dict((k, "" if v is None else str(v.relative_to(self.destination.parent))) for k, v in self.extracted.items()),
+            ensure_ascii=False,
+            indent=2,
+        )
+        path = self.destination.parent.joinpath('backgrounds.json')
+        with path.open('w') as f:
+            f.write(s)
+        return path

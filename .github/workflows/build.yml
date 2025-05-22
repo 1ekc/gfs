@@ -10,70 +10,44 @@ permissions:
 jobs:
   documentation:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
-
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Clean Cache (if enabled)
-        if: env.CLEAN_CACHE == 'true'
-        run: |
-          rm -rf unpack/downloader/output/*
-          rm -rf unpack/downloader/resdata/*
-          rm -rf unpack/images/*
-          rm -rf unpack/audio/*
-          echo "::set-output name=cache-primary-key::$(date +%s)"
-        id: clean-cache
-
       - name: Log Disk Space
         run: df -h
-
       - name: Free Disk Space
         uses: jlumbroso/free-disk-space@main
         with:
           tool-cache: false
           large-packages: false
           swap-storage: false
-
-      - name: Install System Dependencies
+      - name: Install Dependencies
         run: |
-          sudo apt update
-          sudo apt install -y ffmpeg pngquant imagemagick libfuse2
+          sudo apt install ffmpeg pngquant imagemagick libfuse2
           wget https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-linux-cli.tar.gz
           tar -zxf vgmstream-linux-cli.tar.gz
-          mkdir -p bin
-          mv vgmstream-cli bin/
-          echo "$(pwd)/bin" >> $GITHUB_PATH
-
-      - name: Setup Python Environment
-        run: |
-          cd unpack
-          python -m venv .venv
-          source .venv/bin/activate
-          pip install -r downloader/requirements.txt  # Правильный путь к файлу
-          pip install UnityPy tqdm pyjson5 pillow
-
-      - name: Restore Downloader Cache
-        id: restore-downloader
+          mkdir bin
+          mv vgmstream-cli bin
+          wget https://imagemagick.org/archive/binaries/magick
+          mv magick bin
+          chmod a+x bin/*
+          echo "${PWD}/bin" >> $GITHUB_PATH
+      - name: Restore Cached Resources
+        id: restore-gf-downloader-resources
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/downloader/output
-            unpack/downloader/resdata
-          key: ${{ runner.os }}-gf-downloader-${{ hashFiles('unpack/downloader/config.json5') }}
-          restore-keys: |
-            ${{ runner.os }}-gf-downloader-
-
-      - name: Validate Downloader Cache
-        if: steps.restore-downloader.outputs.cache-hit == 'true'
+          key: gf-downloader-resources
+      - name: Setup PDM
+        uses: pdm-project/setup-pdm@v4
+      - name: Setup Python Environment
         run: |
-          echo "Validating restored cache..."
-          [ -f unpack/downloader/resdata/us_resdata.json ] && echo "✔ us_resdata.json exists" || (echo "❌ us_resdata.json missing - invalidating cache" && exit 1)
-          [ -f unpack/downloader/output/AVG.acb.dat ] && echo "✔ AVG.acb.dat exists" || (echo "❌ AVG.acb.dat missing - invalidating cache" && exit 1)
-          echo "✅ Cache is valid"
+          cd unpack
+          pdm install
+          source .venv/bin/activate
+          pip install -r downloader/requirements.txt
 
       - name: Download Resources
         if: steps.restore-downloader.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true'
@@ -101,107 +75,79 @@ jobs:
           [ -f output/AVG.acb.dat ] && echo "✔ AVG.acb.dat downloaded ($(du -h output/AVG.acb.dat | cut -f1))" || echo "❌ AVG.acb.dat FAILED TO DOWNLOAD"
           [ -f resdata/us_resdata.json ] && echo "✔ us_resdata.json downloaded" || echo "❌ us_resdata.json FAILED TO DOWNLOAD"
 
-      - name: Save Downloader Cache
-        if: always() && (steps.restore-downloader.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
+      - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/downloader/output
-            unpack/downloader/resdata
-          key: ${{ steps.restore-downloader.outputs.cache-primary-key }}
-
-      - name: Restore Images Cache
-        id: restore-images
+          key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
+      - name: Restore Cached Resources (images)
+        id: restore-image-resources
         uses: actions/cache/restore@v4
         with:
-          path: unpack/images
-          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/backgrounds.py') }}-${{ hashFiles('unpack/downloader/resdata/us_resdata.json') }}
-          restore-keys: |
-            ${{ runner.os }}-gf-images-
-
-      - name: Validate Images Cache
-        if: steps.restore-images.outputs.cache-hit == 'true'
-        run: |
-          echo "Validating images cache..."
-          [ -f unpack/images/backgrounds.json ] && echo "✔ backgrounds.json exists" || (echo "❌ backgrounds.json missing - invalidating cache" && exit 1)
-          [ -d unpack/images/backgrounds ] && echo "✔ backgrounds directory exists" || (echo "❌ backgrounds directory missing - invalidating cache" && exit 1)
-          echo "✅ Images cache is valid"
-
-      - name: Restore Audio Cache
-        id: restore-audio
-        uses: actions/cache/restore@v4
-        with:
-          path: unpack/audio
-          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/audio.py') }}-${{ hashFiles('unpack/downloader/resdata/us_resdata.json') }}
-          restore-keys: |
-            ${{ runner.os }}-gf-audio-
-
-      - name: Validate Audio Cache
-        if: steps.restore-audio.outputs.cache-hit == 'true'
-        run: |
-          echo "Validating audio cache..."
-          [ -f unpack/audio/audio.json ] && echo "✔ audio.json exists" || (echo "❌ audio.json missing - invalidating cache" && exit 1)
-          [ -d unpack/audio/acb ] && echo "✔ acb directory exists" || (echo "❌ acb directory missing - invalidating cache" && exit 1)
-          echo "✅ Audio cache is valid"
-
-      - name: Process Resources
+          path: |
+            unpack/images
+          key: gf-image-resources
+      - name: Unpack images
         run: |
           cd unpack
           source .venv/bin/activate
-          python -m src.gfunpack.__main__ downloader/output -o output --no-clean
-
-#      - name: Process Images
-#        run: |
-#          cd unpack
-#          source .venv/bin/activate
-#          python tests/test_backgrounds.py
-#          python tests/test_characters.py
-
-      - name: Save Images Cache
-        if: always() && (steps.restore-images.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
+          python tests/test_backgrounds.py
+          python tests/test_characters.py
+      - name: Cache Resources (images)
         uses: actions/cache/save@v4
         with:
-          path: unpack/images
-          key: ${{ steps.restore-images.outputs.cache-primary-key }}
-
-      - name: Save Audio Cache
-        if: always() && (steps.restore-audio.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
-        uses: actions/cache/save@v4
+          path: |
+            unpack/images
+          key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
+      - name: Restore Cached Resources (audio)
+        id: restore-audio-resources
+        uses: actions/cache/restore@v4
         with:
-          path: unpack/audio
-          key: ${{ steps.restore-audio.outputs.cache-primary-key }}
-
-      - name: Prepare Final Assets
+          path: |
+            unpack/audio
+          key: gf-audio-resources
+      - name: Unpack audio
         run: |
           cd unpack
-          mkdir -p ../src/assets ../public
-          cp audio/audio.json images/backgrounds.json images/characters.json ../src/assets/
-          mv audio images ../public/
-
-#      - name: Upload Artifacts
-#        if: always()
-#        uses: actions/upload-artifact@v3
-#        with:
-#          name: inspection-logs
-#          path: |
-#            asset_contents.json
-#            unpack/downloader/output/asset_list.txt
-
+          source .venv/bin/activate
+          python tests/test_audio.py
+      - name: Cache Resources (audio)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            unpack/audio
+          key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
+      - name: Unpack resources
+        run: |
+          cd unpack
+          source .venv/bin/activate
+          python -m gfunpack downloader/output -o .
+      - name: Log Disk Space
+        run: df -h
+      - name: Move Resources
+        run: |
+          cd unpack
+          cp audio/audio.json images/backgrounds.json images/characters.json stories/stories.json stories/chapters.json ../src/assets
+          mv audio ../public
+          mv images ../public
+          mv stories ../public
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:
           version: 9.4.0
-          run_install: true
-
-      - name: Build Frontend
+          run_install: false
+      - name: Setup PNPM Workspace
         run: |
           pnpm install
+      - name: Build Site
+        run: |
+          pnpm build-index
           pnpm build
-
-      - name: Deploy to Cloudflare
+      - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
+          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME  }}
           directory: dist
