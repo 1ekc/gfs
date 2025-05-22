@@ -13,7 +13,7 @@ from gfunpack import mapper, utils, manual_chapters
 _logger = logging.getLogger('gfunpack.prefabs')
 _warning = _logger.warning
 
-_text_asset_regex = re.compile('^assets/resources/dabao/avgtxt/(.+.txt)$')
+_text_asset_regex = re.compile(r'^unpack\\gf-data-rus\\asset\\avgtxt\\(.+.txt)$')
 
 _speaker_regex = re.compile('<speaker>(.*)</speaker>', re.IGNORECASE)
 _sprite_regex = re.compile('^([^()<>]*)\\((\\d*)\\)')
@@ -476,35 +476,33 @@ class Stories:
             extracted[name] = path
         return extracted
 
+    def _process_text_file(self, content: str, name: str, dest_path: pathlib.Path):
+        decoded_content = self._decode(content, name) or ''
+        dest_path.parent.mkdir(parents=True, exist_ok=True)
+        with dest_path.open('w', encoding='utf-8') as f:
+            f.write(decoded_content)
+        self.extracted[name] = dest_path
+
     def copy_missing_pieces(self):
-        # Обновленные пути для ручного копирования
         manual_chapters.get_extra_stories(self.gf_data_directory.joinpath('asset', 'avgtxt'))
         manual_chapters.get_extra_anniversary_stories(self.gf_data_directory.joinpath('asset', 'avgtxt'))
 
-        # Проверяем существование папки (опционально)
         avg_txt_dir = self.gf_data_directory.joinpath('asset', 'avgtxt')
         if not avg_txt_dir.exists():
             _warning(f"Directory not found: {avg_txt_dir}")
             return
 
-        # Ищем .txt файлы в новой структуре
         for file in avg_txt_dir.glob('**/*.txt'):
-            rel_path = file.relative_to(avg_txt_dir)
-            name = str(rel_path)
-
-            if name not in self.extracted:
-                _warning('Adding missing file: %s', name)
-                dest_path = self.destination.joinpath(rel_path)
-                dest_path.parent.mkdir(parents=True, exist_ok=True)
-
-                with file.open('r', encoding='utf-8') as src_file:
-                    content = src_file.read()
-                    decoded_content = self._decode(content, name) or ''
-
-                with dest_path.open('w', encoding='utf-8') as dest_file:
-                    dest_file.write(decoded_content)
-
-                self.extracted[name] = dest_path
+            try:
+                rel_path = file.relative_to(avg_txt_dir)
+                name = str(rel_path)
+                if name not in self.extracted:
+                    _warning('Adding missing file: %s', name)
+                    with file.open('r', encoding='utf-8') as f:
+                        content = f.read()
+                    self._process_text_file(content, name, self.destination.joinpath(rel_path))
+            except Exception as e:
+                _warning(f'Error processing file {file}: {str(e)}')
 
     def save(self):
         path = self.destination.joinpath('stories.json')
