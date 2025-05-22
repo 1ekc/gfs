@@ -199,6 +199,15 @@ jobs:
           ls -lh ../src/assets/
           ls -lh ../public/
 
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v3
+        with:
+          name: inspection-logs
+          path: |
+            asset_contents.json
+            unpack/downloader/output/asset_list.txt
+
       - name: Setup PNPM
         uses: pnpm/action-setup@v4
         with:

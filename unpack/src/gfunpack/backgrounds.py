@@ -209,8 +209,8 @@ class BackgroundCollection:
 
 def main():
     parser = argparse.ArgumentParser(description='Обработка фоновых изображений')
-    parser.add_argument('input_dir', help='Директория с ресурсами игры')
-    parser.add_argument('output_dir', help='Целевая директория для результатов')
+    parser.add_argument('--input-dir', default='output', help='Директория с ресурсами игры')
+    parser.add_argument('--output-dir', default='backgrounds', help='Целевая директория для результатов')
     parser.add_argument('--pngquant', action='store_true', help='Использовать pngquant')
     parser.add_argument('--force', action='store_true', help='Принудительная перезапись')
     parser.add_argument('--concurrency', type=int, default=cpu_count(),
