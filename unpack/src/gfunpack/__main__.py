@@ -3,14 +3,12 @@ import os
 import sys
 import pathlib
 
-# Текущая директория скрипта (unpack/src/gfunpack/)
-current_dir = pathlib.Path(__file__).parent
-
 # Добавляем путь к корню проекта (unpack/)
-sys.path.insert(0, str(current_dir.parent.parent))
+root_dir = pathlib.Path(__file__).parent.parent.parent  # Путь: unpack/src/gfunpack → unpack/
+sys.path.insert(0, str(root_dir))
 
-# Локальные импорты
-from gfunpack import audio, backgrounds, characters, chapters, mapper, prefabs, stories
+# Теперь импорты должны быть относительными
+from src.gfunpack importaudio, backgrounds, characters, chapters, mapper, prefabs, stories
 
 
 def main():

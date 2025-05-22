@@ -157,9 +157,8 @@ jobs:
         run: |
           cd unpack
           source .venv/bin/activate
-          # Запуск через модуль (корень проекта — unpack/)
+          # Запуск основного скрипта (он обрабатывает всё)
           python -m src.gfunpack.__main__ downloader/output output --no-clean
-          python -m src.gfunpack.audio downloader/output audio --concurrency 4
 
 #      - name: Process Images
 #        run: |
