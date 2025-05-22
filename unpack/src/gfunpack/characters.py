@@ -8,7 +8,7 @@ import subprocess
 import threading
 from pathlib import Path
 from typing import Dict, List, Tuple
-
+from multiprocessing import cpu_count
 import tqdm
 import UnityPy
 from UnityPy.classes import Sprite, Texture2D
