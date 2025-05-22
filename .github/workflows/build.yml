@@ -4,6 +4,10 @@ on:
   workflow_dispatch:
   push:
 
+# Раскомментируйте следующую строку для принудительной очистки кэша
+env:
+  CLEAN_CACHE: "true"
+
 permissions:
   contents: write
 
@@ -17,6 +21,16 @@ jobs:
         with:
           submodules: 'recursive'
           token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Clean Cache (if enabled)
+        if: env.CLEAN_CACHE == 'true'
+        run: |
+          echo "🧹 Force cleaning all caches..."
+          rm -rf unpack/downloader/output/*
+          rm -rf unpack/downloader/resdata/*
+          rm -rf unpack/images/*
+          rm -rf unpack/audio/*
+          echo "✅ All caches cleaned"
 
       - name: Log Disk Space
         run: df -h
@@ -59,28 +73,22 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gf-downloader-
 
-      - name: Log Cache Restoration
+      - name: Validate Downloader Cache
         if: steps.restore-downloader.outputs.cache-hit == 'true'
         run: |
-          echo "✅ Cache restored successfully"
-          echo "Restored files in output/:"
-          ls -lh unpack/downloader/output/
-          echo "Restored files in resdata/:"
-          ls -lh unpack/downloader/resdata/
-          echo "Checking critical files:"
-          [ -f unpack/downloader/output/AVG.acb.dat ] && echo "✔ AVG.acb.dat found ($(du -h unpack/downloader/output/AVG.acb.dat | cut -f1))" || echo "❌ AVG.acb.dat MISSING"
-          [ -f unpack/downloader/resdata/us_resdata.json ] && echo "✔ us_resdata.json found" || echo "❌ us_resdata.json MISSING"
+          echo "Validating restored cache..."
+          [ -f unpack/downloader/resdata/us_resdata.json ] && echo "✔ us_resdata.json exists" || (echo "❌ us_resdata.json missing - invalidating cache" && exit 1)
+          [ -f unpack/downloader/output/AVG.acb.dat ] && echo "✔ AVG.acb.dat exists" || (echo "❌ AVG.acb.dat missing - invalidating cache" && exit 1)
+          echo "✅ Cache is valid"
 
       - name: Download Resources
-        if: steps.restore-downloader.outputs.cache-hit != 'true'
+        if: steps.restore-downloader.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true' || failure()
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
           cd unpack/downloader
-          echo "Files before download:"
-          ls -lh output/ || mkdir -p output
           echo "Running downloader..."
-          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --verbose
+          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --force --verbose
           echo "Files after download:"
           ls -lh output/
           echo "Critical files check:"
@@ -88,7 +96,7 @@ jobs:
           [ -f resdata/us_resdata.json ] && echo "✔ us_resdata.json downloaded" || echo "❌ us_resdata.json FAILED TO DOWNLOAD"
 
       - name: Save Downloader Cache
-        if: always() && steps.restore-downloader.outputs.cache-hit != 'true'
+        if: always() && (steps.restore-downloader.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
         uses: actions/cache/save@v4
         with:
           path: |
@@ -101,42 +109,58 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: unpack/images
-          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/backgrounds.py') }}
+          key: ${{ runner.os }}-gf-images-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/backgrounds.py') }}-${{ hashFiles('unpack/downloader/resdata/us_resdata.json') }}
           restore-keys: |
             ${{ runner.os }}-gf-images-
+
+      - name: Validate Images Cache
+        if: steps.restore-images.outputs.cache-hit == 'true'
+        run: |
+          echo "Validating images cache..."
+          [ -f unpack/images/backgrounds.json ] && echo "✔ backgrounds.json exists" || (echo "❌ backgrounds.json missing - invalidating cache" && exit 1)
+          [ -d unpack/images/backgrounds ] && echo "✔ backgrounds directory exists" || (echo "❌ backgrounds directory missing - invalidating cache" && exit 1)
+          echo "✅ Images cache is valid"
 
       - name: Restore Audio Cache
         id: restore-audio
         uses: actions/cache/restore@v4
         with:
           path: unpack/audio
-          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/audio.py') }}
+          key: ${{ runner.os }}-gf-audio-${{ hashFiles('unpack/downloader/config.json5') }}-${{ hashFiles('unpack/src/gfunpack/audio.py') }}-${{ hashFiles('unpack/downloader/resdata/us_resdata.json') }}
           restore-keys: |
             ${{ runner.os }}-gf-audio-
 
+      - name: Validate Audio Cache
+        if: steps.restore-audio.outputs.cache-hit == 'true'
+        run: |
+          echo "Validating audio cache..."
+          [ -f unpack/audio/audio.json ] && echo "✔ audio.json exists" || (echo "❌ audio.json missing - invalidating cache" && exit 1)
+          [ -d unpack/audio/acb ] && echo "✔ acb directory exists" || (echo "❌ acb directory missing - invalidating cache" && exit 1)
+          echo "✅ Audio cache is valid"
+
       - name: Process Resources
-        if: steps.restore-images.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true'
+        if: steps.restore-images.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true' || failure()
         run: |
           cd unpack
           source .venv/bin/activate
           echo "Starting resource processing..."
           echo "Running audio processor..."
-          python src/gfunpack/audio.py "$(pwd)/downloader/output" "$(pwd)/../audio" --concurrency 4
+          python src/gfunpack/audio.py "$(pwd)/downloader/output" "$(pwd)/audio" --concurrency 4
           echo "Running backgrounds processor..."
-          python src/gfunpack/backgrounds.py "$(pwd)/downloader/output" "$(pwd)/../images" --concurrency 4
+          python src/gfunpack/backgrounds.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
           echo "Running characters processor..."
-          python src/gfunpack/characters.py "$(pwd)/downloader/output" "$(pwd)/../images" --concurrency 4
+          python src/gfunpack/characters.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
           echo "Resource processing completed"
 
       - name: Save Images Cache
-        if: always() && steps.restore-images.outputs.cache-hit != 'true'
+        if: always() && (steps.restore-images.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
         uses: actions/cache/save@v4
         with:
           path: unpack/images
           key: ${{ steps.restore-images.outputs.cache-primary-key }}
 
       - name: Save Audio Cache
-        if: always() && steps.restore-audio.outputs.cache-hit != 'true'
+        if: always() && (steps.restore-audio.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
         uses: actions/cache/save@v4
         with:
           path: unpack/audio
