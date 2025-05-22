@@ -84,32 +84,27 @@ def read_text_asset(ab_path: Path, txt_files: Dict[str, Path] = None) -> str:
         raise
 
 
-class BackgroundProcessor:
+class BackgroundCollection:  # Было BackgroundProcessor
     """Обработчик фоновых изображений"""
 
-    def __init__(self, input_dir: str, output_dir: str, txt_data_path: str = None):
+    def __init__(self, input_dir: str, output_dir: str, pngquant: bool = False, concurrency: int = 4):
         self.input_path = Path(input_dir)
         self.output_path = Path(output_dir)
-        self.txt_files = find_txt_files(Path(txt_data_path)) if txt_data_path else None
+        self.pngquant = pngquant
+        self.concurrency = concurrency
         self.output_path.mkdir(parents=True, exist_ok=True)
 
-    def process(self):
+    def save(self):
         """Основной процесс обработки"""
         try:
-            # 1. Найти все файлы ресурсов
             resource_files = list(self.input_path.glob('resource_avgtexture*.ab'))
             if not resource_files:
                 raise FileNotFoundError("No resource_avgtexture*.ab files found")
 
-            # 2. Обработать фоновые изображения
             backgrounds = self._extract_backgrounds(resource_files)
-
-            # 3. Сохранить результаты
             result_file = self.output_path / 'backgrounds.json'
             with open(result_file, 'w', encoding='utf-8') as f:
                 json.dump(backgrounds, f, ensure_ascii=False, indent=2)
-
-            logger.info(f"Successfully processed {len(backgrounds)} backgrounds")
             return result_file
 
         except Exception as e:

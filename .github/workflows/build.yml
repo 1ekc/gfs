@@ -4,10 +4,6 @@ on:
   workflow_dispatch:
   push:
 
-# Раскомментируйте следующую строку для принудительной очистки кэша
-#env:
-#  CLEAN_CACHE: "true"
-
 permissions:
   contents: write
 
@@ -25,13 +21,11 @@ jobs:
       - name: Clean Cache (if enabled)
         if: env.CLEAN_CACHE == 'true'
         run: |
-          echo "🧹 Force cleaning all caches..."
           rm -rf unpack/downloader/output/*
           rm -rf unpack/downloader/resdata/*
           rm -rf unpack/images/*
           rm -rf unpack/audio/*
           echo "::set-output name=cache-primary-key::$(date +%s)"
-          echo "✅ All caches cleaned"
         id: clean-cache
 
       - name: Log Disk Space
@@ -52,8 +46,6 @@ jobs:
           tar -zxf vgmstream-linux-cli.tar.gz
           mkdir -p bin
           mv vgmstream-cli bin/
-          wget https://imagemagick.org/archive/binaries/magick -O bin/magick
-          chmod a+x bin/*
           echo "$(pwd)/bin" >> $GITHUB_PATH
 
       - name: Setup Python Environment
@@ -61,9 +53,8 @@ jobs:
           cd unpack
           python -m venv .venv
           source .venv/bin/activate
-          python -m pip install --upgrade pip
-          pip install -r downloader/requirements.txt  # Если файл остался в downloader
-          echo "Python dependencies installed"
+          pip install -r requirements.txt
+          pip install UnityPy tqdm pyjson5 pillow
 
       - name: Restore Downloader Cache
         id: restore-downloader
@@ -157,7 +148,6 @@ jobs:
         run: |
           cd unpack
           source .venv/bin/activate
-          # Запуск основного скрипта (он обрабатывает всё)
           python -m src.gfunpack.__main__ downloader/output -o output --no-clean
 
 #      - name: Process Images
@@ -185,13 +175,8 @@ jobs:
         run: |
           cd unpack
           mkdir -p ../src/assets ../public
-          echo "Copying JSON files..."
           cp audio/audio.json images/backgrounds.json images/characters.json ../src/assets/
-          echo "Moving assets to public..."
           mv audio images ../public/
-          echo "Final assets structure:"
-          ls -lh ../src/assets/
-          ls -lh ../public/
 
 #      - name: Upload Artifacts
 #        if: always()

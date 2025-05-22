@@ -4,12 +4,11 @@ import sys
 import pathlib
 
 # Добавляем путь к корню проекта (unpack/)
-root_dir = pathlib.Path(__file__).parent.parent.parent  # Путь: unpack/src/gfunpack → unpack/
+root_dir = pathlib.Path(__file__).parent.parent.parent
 sys.path.insert(0, str(root_dir))
 
-# Теперь импорты должны быть относительными
-from src.gfunpack import audio, backgrounds, characters, chapters, mapper, prefabs, stories
-
+from gfunpack.backgrounds import BackgroundCollection
+from gfunpack import audio, characters, chapters, mapper, prefabs, stories
 
 def main():
     parser = argparse.ArgumentParser(description='GFUnpack - инструмент для распаковки ресурсов')
@@ -21,6 +20,16 @@ def main():
     cpus = os.cpu_count() or 2
     downloaded = args.dir
     destination = pathlib.Path(args.output)
+
+    # Обработка фонов
+    images = destination.joinpath('images')
+    bg = BackgroundCollection(
+        input_dir=downloaded,
+        output_dir=str(images),
+        pngquant=True,
+        concurrency=cpus
+    )
+    bg.save()
 
     # Обработка фонов
     images = destination.joinpath('images')
