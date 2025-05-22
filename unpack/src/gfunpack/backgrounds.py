@@ -11,7 +11,7 @@ from typing import Dict, List, Optional, Union, Tuple
 
 import UnityPy
 from tqdm import tqdm
-from UnityPy.classes import Sprite, Texture2D
+from UnityPy.classes import Sprite, Texture2D, TextAsset
 
 # Настройка логирования
 logging.basicConfig(
@@ -27,40 +27,66 @@ logger = logging.getLogger(__name__)
 _avgtexture_regex = re.compile(r'^assets/resources/dabao/avgtexture/([^/]+)\.png$')
 
 
-def read_text_asset(ab_path: Path, asset_path: str) -> str:
-    """Читает текстовый ассет из asset bundle с обработкой разных форматов"""
+def read_text_asset(ab_path: Path) -> str:
+    """Извлекает текстовые ассеты из asset bundle и ищет profiles.txt"""
     try:
-        # Загрузка asset bundle
+        logger.info(f"Чтение asset bundle: {ab_path.name}")
         env = UnityPy.load(str(ab_path))
 
-        # Поиск текстового ассета
-        text_asset = env.get(asset_path)
-        if not text_asset:
-            raise ValueError(f"Ассет {asset_path} не найден в {ab_path}")
+        # Собираем все текстовые ассеты
+        text_assets = []
+        for obj in env.objects:
+            if obj.type.name == "TextAsset":
+                data = obj.read()
+                if hasattr(data, 'm_Script') and data.m_Script:
+                    container = obj.container if hasattr(obj, 'container') else None
+                    text_assets.append((container, data))
 
-        # Получение содержимого с учетом разных форматов Unity
-        script_data = text_asset.read().m_Script
+        if not text_assets:
+            raise ValueError(f"В {ab_path.name} нет текстовых ассетов")
 
-        if hasattr(script_data, 'tobytes'):  # Старые версии Unity
-            return script_data.tobytes().decode('utf-8')
-        elif isinstance(script_data, (str, bytes)):  # Новые версии
-            return script_data if isinstance(script_data, str) else script_data.decode('utf-8')
-        elif hasattr(script_data, 'bytes'):  # Альтернативный формат
-            return script_data.bytes.decode('utf-8')
-        else:  # Резервный вариант
-            return str(script_data)
+        # Приоритеты поиска profiles.txt
+        search_patterns = [
+            lambda p: "profiles.txt" in str(p).lower(),
+            lambda p: str(p).lower().endswith(".txt"),
+            lambda p: True  # Любой текстовый ассет
+        ]
+
+        for pattern in search_patterns:
+            for path, asset in text_assets:
+                if path is None or pattern(path):
+                    content = _decode_text_asset(asset.m_Script)
+                    if content.strip():  # Проверяем, что не пустой
+                        logger.info(f"Найден текстовый ассет: {path or 'без пути'}")
+                        return content
+
+        raise ValueError(f"Не найдено подходящего текстового ассета в {ab_path.name}")
 
     except Exception as e:
-        logger.error(f"Ошибка чтения ассета {asset_path}: {str(e)}")
+        logger.error(f"Ошибка чтения {ab_path.name}: {str(e)}")
         raise
+
+
+def _decode_text_asset(script_data) -> str:
+    """Декодирует данные TextAsset с учетом разных форматов"""
+    if hasattr(script_data, 'tobytes'):  # Старые версии Unity
+        return script_data.tobytes().decode('utf-8')
+    elif isinstance(script_data, (str, bytes)):  # Новые версии
+        return script_data if isinstance(script_data, str) else script_data.decode('utf-8')
+    elif hasattr(script_data, 'bytes'):  # Альтернативный формат
+        return script_data.bytes.decode('utf-8')
+    else:  # Резервный вариант
+        return str(script_data)
+
 
 def run_pngquant(image_path: Path):
     """Запуск pngquant для оптимизации изображения"""
     try:
         subprocess.run(['pngquant', '--force', '--skip-if-larger', '--ext', '.png', str(image_path)],
-                      check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                       check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     except (FileNotFoundError, subprocess.CalledProcessError) as e:
         logger.warning(f"Ошибка pngquant: {str(e)}")
+
 
 class BackgroundCollection:
     """Класс для обработки фоновых изображений"""
@@ -105,7 +131,7 @@ class BackgroundCollection:
                 results = list(tqdm(
                     pool.imap_unordered(self._process_single_file, [(f, _avgtexture_regex) for f in chunk]),
                     total=len(chunk),
-                    desc=f"Обработка чанка {i//self.CHUNK_SIZE + 1}"
+                    desc=f"Обработка чанка {i // self.CHUNK_SIZE + 1}"
                 ))
                 for result in results:
                     all_images.update(result)
@@ -142,15 +168,20 @@ class BackgroundCollection:
         return None
 
     def _extract_bg_profiles(self) -> List[str]:
-        """Извлекает список профилей фонов из указанного файла в asset bundle"""
+        """Извлекает список профилей фонов из asset bundle"""
         try:
-            # Чтение текстового ассета из указанного пути
-            content = read_text_asset(
-                self.input_path / 'asset_textavg.ab',
-                'assets/resources/dabao/avgtxt/profiles.txt'
-            )
+            # Проверяем существование файла
+            asset_path = self.input_path / 'asset_textavg.ab'
+            if not asset_path.exists():
+                raise FileNotFoundError(f"Файл asset_textavg.ab не найден в {self.input_path}")
 
-            # Обработка содержимого в зависимости от формата
+            if asset_path.stat().st_size == 0:
+                raise ValueError(f"Файл asset_textavg.ab пуст или поврежден")
+
+            # Получаем содержимое текстового ассета
+            content = read_text_asset(asset_path)
+
+            # Обработка содержимого
             if content.startswith('{') and content.endswith('}'):  # JSON формат
                 try:
                     data = json.loads(content)
@@ -207,6 +238,7 @@ class BackgroundCollection:
         logger.info("Результаты сохранены в %s", output_file)
         return output_file
 
+
 def main():
     parser = argparse.ArgumentParser(description='Обработка фоновых изображений')
     parser.add_argument('--input-dir', default='output', help='Директория с ресурсами игры')
@@ -214,7 +246,7 @@ def main():
     parser.add_argument('--pngquant', action='store_true', help='Использовать pngquant')
     parser.add_argument('--force', action='store_true', help='Принудительная перезапись')
     parser.add_argument('--concurrency', type=int, default=cpu_count(),
-                       help='Количество процессов (по умолчанию - все ядра)')
+                        help='Количество процессов (по умолчанию - все ядра)')
     args = parser.parse_args()
 
     processor = BackgroundCollection(
@@ -226,6 +258,7 @@ def main():
     )
     result_path = processor.save()
     print(f"Обработка завершена. Результаты: {result_path}")
+
 
 if __name__ == "__main__":
     main()
