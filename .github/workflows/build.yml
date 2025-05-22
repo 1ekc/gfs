@@ -53,7 +53,7 @@ jobs:
           cd unpack
           python -m venv .venv
           source .venv/bin/activate
-          pip install -r requirements.txt
+          pip install -r downloader/requirements.txt  # Правильный путь к файлу
           pip install UnityPy tqdm pyjson5 pillow
 
       - name: Restore Downloader Cache
