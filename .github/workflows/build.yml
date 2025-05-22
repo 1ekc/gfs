@@ -89,15 +89,24 @@ jobs:
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
-          echo "Current directory: $(pwd)"
           cd unpack/downloader
-          echo "Now in: $(pwd)"
-          source ../.venv/bin/activate
-          echo "Running downloader..."
-          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls" --force --verbose
-          echo "Files after download:"
-          ls -lh output/
-          echo "Critical files check:"
+          # Проверка наличия config.json5
+          if [ ! -f "config.json5" ]; then
+            echo "::error::Файл config.json5 не найден!"
+            exit 1
+          fi
+          # Создаем символическую ссылку
+          ln -sf config.json5 config.json
+          # Установка зависимостей
+          pip install -r requirements.txt
+          # Запуск скрипта
+          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
+          # Проверка результата
+          if [ ! -f "resdata/us_resdata.json" ]; then
+            echo "::error::Ошибка загрузки файлов"
+            exit 1
+          fi
+          echo "::notice::Загрузка завершена успешно"
           [ -f output/AVG.acb.dat ] && echo "✔ AVG.acb.dat downloaded ($(du -h output/AVG.acb.dat | cut -f1))" || echo "❌ AVG.acb.dat FAILED TO DOWNLOAD"
           [ -f resdata/us_resdata.json ] && echo "✔ us_resdata.json downloaded" || echo "❌ us_resdata.json FAILED TO DOWNLOAD"
 
@@ -144,19 +153,25 @@ jobs:
           [ -d unpack/audio/acb ] && echo "✔ acb directory exists" || (echo "❌ acb directory missing - invalidating cache" && exit 1)
           echo "✅ Audio cache is valid"
 
-      - name: Process Resources
-        if: steps.restore-images.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true' || failure()
+#      - name: Process Resources
+#        if: steps.restore-images.outputs.cache-hit != 'true' || steps.restore-audio.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true' || failure()
+#        run: |
+#          cd unpack
+#          source .venv/bin/activate
+#          echo "Starting resource processing..."
+#          echo "Running audio processor..."
+#          python src/gfunpack/audio.py "$(pwd)/downloader/output" "$(pwd)/audio" --concurrency 4
+#          echo "Running backgrounds processor..."
+#          python src/gfunpack/backgrounds.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
+#          echo "Running characters processor..."
+#          python src/gfunpack/characters.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
+#          echo "Resource processing completed"
+      - name: Process Images
         run: |
           cd unpack
           source .venv/bin/activate
-          echo "Starting resource processing..."
-          echo "Running audio processor..."
-          python src/gfunpack/audio.py "$(pwd)/downloader/output" "$(pwd)/audio" --concurrency 4
-          echo "Running backgrounds processor..."
-          python src/gfunpack/backgrounds.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
-          echo "Running characters processor..."
-          python src/gfunpack/characters.py "$(pwd)/downloader/output" "$(pwd)/images" --concurrency 4
-          echo "Resource processing completed"
+          python tests/test_backgrounds.py
+          python tests/test_characters.py
 
       - name: Save Images Cache
         if: always() && (steps.restore-images.outputs.cache-hit != 'true' || env.CLEAN_CACHE == 'true')
