@@ -99,9 +99,9 @@ jobs:
         run: |
           cd unpack
           source .venv/bin/activate
-          python audio.py ../downloader/output ../audio --concurrency 4
-          python backgrounds.py ../downloader/output ../images --concurrency 4
-          python characters.py ../downloader/output ../images --concurrency 4
+          python src/gfunpack/audio.py downloader/output ../audio --concurrency 4
+          python src/gfunpack/backgrounds.py downloader/output ../images --concurrency 4
+          python src/gfunpack/characters.py downloader/output ../images --concurrency 4
 
       - name: Save Images Cache
         if: always() && steps.restore-images.outputs.cache-hit != 'true'

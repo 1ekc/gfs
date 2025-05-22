@@ -8,13 +8,7 @@ current_dir = pathlib.Path(__file__).parent
 sys.path.insert(0, str(current_dir))
 
 # Локальные импорты
-import audio
-import backgrounds
-import chapters
-import characters
-import mapper
-import prefabs
-import stories
+from src.gfunpack import audio, backgrounds, characters, chapters, mapper, prefabs, stories
 
 
 def main():
