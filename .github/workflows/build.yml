@@ -13,17 +13,26 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # Замена df -h на Windows-совместимую команду
       - name: Check Disk Space (Windows)
         run: |
           Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
 
       - name: Install Windows Dependencies
         run: |
-          choco install -y ffmpeg pngquant imagemagick git-lfs nodejs
+          # Проверяем и устанавливаем только отсутствующие пакеты
+          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
+          
+          # Обновляем переменные среды для PowerShell
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
+          
+          # Проверяем установленные версии
+          ffmpeg -version
+          pngquant --version
+          magick --version
+          git lfs version
+          node --version
 
-      # Остальные шаги остаются без изменений
       - name: Setup Git LFS
         run: |
           git lfs install
