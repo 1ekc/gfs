@@ -4,26 +4,26 @@ on:
   workflow_dispatch:
   push:
 
-permissions:
-  contents: write
-
 jobs:
   build:
-    runs-on: self-hosted  # Используем self-hosted runner
+    runs-on: self-hosted
     environment: production
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      - name: Log Disk Space
-        run: df -h
+      # Замена df -h на Windows-совместимую команду
+      - name: Check Disk Space (Windows)
+        run: |
+          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
 
       - name: Install Windows Dependencies
         run: |
           choco install -y ffmpeg pngquant imagemagick git-lfs nodejs
           refreshenv
 
+      # Остальные шаги остаются без изменений
       - name: Setup Git LFS
         run: |
           git lfs install
