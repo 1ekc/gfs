@@ -39,7 +39,15 @@ class Mapper:
         dest = self.mapped
         asdict = dataclasses.asdict(d)
         sprite_details = typing.cast(SpriteDetails, d)
-        asdict['path'] = str(sprite_details.path.relative_to(self.characters.destination))
+
+        try:
+            # Пробуем получить относительный путь
+            asdict['path'] = str(sprite_details.path.relative_to(self.characters.destination))
+        except ValueError:
+            # Если пути несовместимы, используем абсолютный путь
+            _warning(f"Path resolution failed for {sprite_details.path}, using absolute path")
+            asdict['path'] = str(sprite_details.path)
+
         if name not in dest:
             dest[name] = {}
         dest[name][i] = asdict
@@ -73,7 +81,11 @@ class Mapper:
 
     def write_indices(self):
         data = self.mapped
-        path = self.characters.destination.joinpath(f'mapped.json')
-        with open(path, 'w') as f:
-            f.write(json.dumps(data, indent=2, ensure_ascii=False))
-        path.rename(self.characters.destination.joinpath('characters.json'))
+        dest_dir = self.characters.destination
+        temp_path = dest_dir.joinpath('mapped.json')
+        final_path = dest_dir.joinpath('characters.json')
+
+        with open(temp_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+
+        temp_path.replace(final_path)  # replace() автоматически удаляет целевой файл если он существует

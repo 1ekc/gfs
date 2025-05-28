@@ -138,10 +138,26 @@ class Chapters:
         self.all_chapters = self.categorize_stories()
 
     def _fetch(self, file: str, item_type: typing.Type[T]) -> list[T]:
-        with self.stories.gf_data_directory.joinpath('formatted', file).open() as f:
-            data = hjson.loads(f.read())
-            assert isinstance(data, list)
-            return [item_type(**item) for item in data]
+        # Проверяем возможные пути
+        possible_paths = [
+            self.stories.gf_data_directory.joinpath('formatted', file),
+            self.stories.gf_data_directory.joinpath('asset', file),
+            self.stories.gf_data_directory.joinpath(file)  # Проверяем корень папки
+        ]
+
+        for file_path in possible_paths:
+            if file_path.exists():
+                try:
+                    with file_path.open('r', encoding='utf-8') as f:
+                        data = hjson.loads(f.read())
+                        assert isinstance(data, list)
+                        return [item_type(**item) for item in data]
+                except Exception as e:
+                    _warning(f"Error reading {file_path}: {e}")
+                    continue
+
+        raise FileNotFoundError(
+            f"Не найден файл {file} в {self.stories.gf_data_directory} (проверено: {', '.join(str(p) for p in possible_paths)})")
 
     def _fetch_and_index(self, file: str):
         items = self._fetch(file, dict)
@@ -358,6 +374,12 @@ class Chapters:
         return chapters
 
     def categorize_stories(self):
+        lang = getattr(self.stories, 'lang', 'ch')
+        # if lang == 'rus':
+        #     self._chapter_info_file = 'story_playback_ru.hjson'
+        #     self._event_info_file = 'story_util_ru.hjson'
+        #     self._bonding_chapter_file = 'fetter_ru.hjson'
+        #     self._bonding_info_file = 'fetter_story_ru.hjson'
         all_chapters: dict[str, list[Chapter]] = {}
         stories = self._categorize_main_stories()
         main: list[Chapter] = []
@@ -393,7 +415,8 @@ class Chapters:
         for chapters in self.all_chapters.values():
             for chapter in chapters:
                 for story in chapter.stories:
-                    story.files = list(filter(lambda f: (f if isinstance(f, str) else f[0]) in self.stories.extracted, story.files))
+                    story.files = list(
+                        filter(lambda f: (f if isinstance(f, str) else f[0]) in self.stories.extracted, story.files))
                     all_file_list.extend((f if isinstance(f, str) else f[0]) for f in story.files)
         all_files = set(all_file_list)
         others = set(self.stories.extracted.keys()) - all_files - get_block_list()
@@ -405,8 +428,11 @@ class Chapters:
                 for file in sorted(others)
             ],
         ))
+
         for k, chapters in self.all_chapters.items():
             chapter_dicts = [dataclasses.asdict(c) for c in chapters]
             all_chapters[k] = chapter_dicts
-        with self.stories.destination.joinpath('chapters.json').open('w') as f:
-            f.write(json.dumps(all_chapters, ensure_ascii=False))
+
+        # Исправленная часть - добавлено указание кодировки
+        with self.stories.destination.joinpath('chapters.json').open('w', encoding='utf-8') as f:
+            json.dump(all_chapters, f, ensure_ascii=False, indent=2)

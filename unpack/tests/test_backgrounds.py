@@ -1,9 +1,23 @@
 from gfunpack import backgrounds
+from pathlib import Path
 
 
 def test_backgrounds():
-    bg = backgrounds.BackgroundCollection('downloader/output', 'images', pngquant=True)
+    # Указываем абсолютные пути
+    bg = backgrounds.BackgroundCollection(
+        directory=str(Path("downloader/output").resolve()),
+        destination=str(Path("images").resolve()),
+        pngquant=True
+    )
+
+    # Принудительно задаём profiles.txt (если скрипт его не находит)
+    bg.profile_asset = Path("gf-data-rus/asset/avgtxt/profiles.txt").resolve()
+
     bg.save()
+
+    # Проверка
+    json_path = Path("images/backgrounds.json")
+    print(f"JSON создан: {json_path.exists()}")
 
 
 if __name__ == '__main__':
