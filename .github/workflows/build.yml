@@ -98,12 +98,15 @@ jobs:
       - name: Move Resources
         run: |
           cd unpack
-          mkdir -p ../src/assets
-          cp audio/audio.json images/backgrounds.json images/characters.json stories/stories.json stories/chapters.json ../src/assets
-          mkdir -p ../public
-          mv audio ../public
-          mv images ../public
-          mv stories ../public
+          # Создаем директории (с проверкой существования)
+          if (!(Test-Path "../src/assets")) { New-Item -ItemType Directory -Path "../src/assets" -Force }
+          if (!(Test-Path "../public")) { New-Item -ItemType Directory -Path "../public" -Force }
+
+          # Копируем JSON файлы
+          Copy-Item "audio/audio.json", "images/backgrounds.json", "images/characters.json", "stories/stories.json", "stories/chapters.json" -Destination "../src/assets" -Force
+
+          # Перемещаем папки
+          Move-Item "audio", "images", "stories" -Destination "../public" -Force
 
       - name: Install Project Dependencies
         run: |
