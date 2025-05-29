@@ -13,12 +13,13 @@ jobs:
         with:
           submodules: 'recursive'
 
-      - name: Configure Console Encoding
+      - name: Fix console encoding
         run: |
-          # Устанавливаем UTF-8 для корректного отображения русских символов
+          # Устанавливаем UTF-8 для PowerShell
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           chcp 65001 | Out-Null
-          Write-Host "Кодировка консоли установлена в UTF-8"
+          # Для git (если используется)
+          git config --global core.quotepath false
 
       - name: Check Disk Space (Windows)
         run: |
@@ -98,26 +99,35 @@ jobs:
 
       - name: Unpack resources
         run: |
-          Write-Host "Текущая директория: $(Get-Location)"
-          Write-Host "Содержимое unpack:"
-          Get-ChildItem unpack -Recurse | Format-Table FullName
+          # Фиксируем кодировку
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          chcp 65001 | Out-Null
 
-          # Основная команда распаковки
-          python -m unpack.gfunpack unpack/downloader/output -o unpack
+          # Переходим в папку с кодом
+          cd unpack/src
 
-          # Проверка результатов
-          if (Test-Path "unpack/audio/audio.json") {
-          Write-Host "Файлы успешно распакованы"
-          } else {
-          Write-Host "::error::Файлы не были созданы"
-          exit 1
+          # Устанавливаем текущую директорию в PYTHONPATH
+          $env:PYTHONPATH = "$(Get-Location);$env:PYTHONPATH"
+
+          Write-Host "PYTHONPATH: $env:PYTHONPATH"
+          Write-Host "Содержимое gfunpack:"
+          Get-ChildItem gfunpack -File | Format-Table Name
+
+          # Запускаем основной скрипт
+          python gfunpack/__main__.py ../../downloader/output -o ../../
+
+          # Проверяем результат
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Ошибка распаковки (код $LASTEXITCODE)"
+            exit 1
           }
 
-      - name: Verify files
-        run: |
-          Get-ChildItem unpack -Recurse -File | 
-          Select-Object FullName, Length | 
-          Format-Table -AutoSize
+          # Проверяем созданные файлы
+          if (-not (Test-Path "../../audio/audio.json")) {
+            Write-Host "::error::Файл audio.json не создан"
+            Get-ChildItem "../../audio" -ErrorAction SilentlyContinue
+            exit 1
+          }
 
       - name: Move Resources
         run: |
