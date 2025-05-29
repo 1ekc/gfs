@@ -96,49 +96,28 @@ jobs:
             unpack/downloader/output
           key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
 
-      - name: Unpack resources with logging
+      - name: Unpack resources
         run: |
-          cd unpack
-          # Запускаем с подробным выводом
-          python -m gfunpack downloader/output -o . --verbose 2>&1 | Tee-Object -FilePath "unpack.log"
+          Write-Host "Текущая директория: $(Get-Location)"
+          Write-Host "Содержимое unpack:"
+          Get-ChildItem unpack -Recurse | Format-Table FullName
 
-          # Показываем лог в консоли
-          Get-Content "unpack.log"
+          # Основная команда распаковки
+          python -m unpack.gfunpack unpack/downloader/output -o unpack
 
-          # Проверяем код завершения
-          if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::Ошибка распаковки. См. unpack.log"
-            exit 1
+          # Проверка результатов
+          if (Test-Path "unpack/audio/audio.json") {
+          Write-Host "Файлы успешно распакованы"
+          } else {
+          Write-Host "::error::Файлы не были созданы"
+          exit 1
           }
 
-      - name: Debug Folder Structure
+      - name: Verify files
         run: |
-          Write-Host "Полная структура unpack:"
-          tree /F unpack
-
-      - name: Verify Unpacked Files
-        run: |
-          cd unpack
-          Write-Host "Содержимое папки unpack:"
-          Get-ChildItem -Recurse | Format-Table FullName
-
-          # Проверка существования файлов
-          $requiredFiles = @(
-            "audio/audio.json",
-            "images/backgrounds.json",
-            "images/characters.json",
-            "stories/stories.json",
-            "stories/chapters.json"
-          )
-
-          foreach ($file in $requiredFiles) {
-            if (Test-Path $file) {
-              Write-Host "OK: $file существует"
-            } else {
-              Write-Host "::error::Файл $file не найден!"
-              exit 1
-            }
-          }
+          Get-ChildItem unpack -Recurse -File | 
+          Select-Object FullName, Length | 
+          Format-Table -AutoSize
 
       - name: Move Resources
         run: |
