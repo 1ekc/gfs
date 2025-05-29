@@ -95,16 +95,14 @@ jobs:
           .\.venv\Scripts\activate
           python -m gfunpack downloader/output -o .
 
-      - name: Move Resources
+      - name: Verify Unpacked Files
         run: |
           cd unpack
+          Write-Host "Содержимое папки unpack:"
+          Get-ChildItem -Recurse | Format-Table FullName
 
-          # Создаем директории (если их нет)
-          if (!(Test-Path "../src/assets")) { New-Item -ItemType Directory -Path "../src/assets" -Force }
-          if (!(Test-Path "../public")) { New-Item -ItemType Directory -Path "../public" -Force }
-
-          # Проверяем существование файлов перед копированием
-          $filesToCopy = @(
+          # Проверка существования файлов
+          $requiredFiles = @(
             "audio/audio.json",
             "images/backgrounds.json",
             "images/characters.json",
@@ -112,36 +110,66 @@ jobs:
             "stories/chapters.json"
           )
 
-          foreach ($file in $filesToCopy) {
+          foreach ($file in $requiredFiles) {
             if (Test-Path $file) {
-              Copy-Item $file -Destination "../src/assets" -Force
-              Write-Host "Скопирован $file"
+              Write-Host "✔ $file существует"
             } else {
-              Write-Host "Файл $file не найден!"
+              Write-Host "::error::Файл $file не найден!"
+              exit 1
             }
           }
 
-          # Перемещаем папки (с проверкой)
-          $foldersToMove = @("audio", "images", "stories")
+      - name: Move Resources
+        run: |
+          # Создаем директории (если их нет)
+          New-Item -ItemType Directory -Path "../src/assets" -Force
+          New-Item -ItemType Directory -Path "../public" -Force
 
-          foreach ($folder in $foldersToMove) {
-            if (Test-Path $folder) {
-              Move-Item $folder -Destination "../public" -Force
-              Write-Host "Перемещена папка $folder"
-            } else {
-              Write-Host "Папка $folder не найдена!"
-            }
+          # Копируем JSON файлы (с проверкой)
+          $copied = $false
+          if (Test-Path "audio/audio.json") {
+            Copy-Item "audio/audio.json" -Destination "../src/assets" -Force
+            $copied = $true
+          }
+          if (Test-Path "images/backgrounds.json") {
+            Copy-Item "images/backgrounds.json" -Destination "../src/assets" -Force
+            $copied = $true
+          }
+          # ... аналогично для остальных файлов
+
+          if (-not $copied) {
+            Write-Host "::error::Ни один JSON-файл не был скопирован!"
+            exit 1
+          }
+
+          # Перемещаем папки (если существуют)
+          if (Test-Path "audio") {
+            Move-Item "audio" -Destination "../public" -Force
+          }
+          if (Test-Path "images") {
+            Move-Item "images" -Destination "../public" -Force
+          }
+          if (Test-Path "stories") {
+            Move-Item "stories" -Destination "../public" -Force
           }
 
           # Логируем результат
-          Write-Host "Содержимое public:"
-          Get-ChildItem "../public" -Recurse | Select-Object FullName
-          Write-Host "Содержимое src/assets:"
-          Get-ChildItem "../src/assets" | Select-Object FullName
+          Write-Host "Скопированы файлы:"
+          Get-ChildItem "../src/assets" | Format-Table Name
+          Write-Host "Перемещены папки:"
+          Get-ChildItem "../public" | Format-Table Name
 
       - name: Install Project Dependencies
         run: |
           pnpm install --frozen-lockfile
+
+      - name: Debug Before Build
+        run: |
+          Write-Host "### Проверка файлов перед сборкой ###"
+          Write-Host "Содержимое src/assets:"
+          Get-ChildItem "src/assets" | Format-Table FullName
+          Write-Host "Содержимое public:"
+          Get-ChildItem "public" -Recurse | Select-Object FullName
 
       - name: Build Site
         run: |
