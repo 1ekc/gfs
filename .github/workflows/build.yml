@@ -99,34 +99,46 @@ jobs:
 
       - name: Unpack resources
         run: |
-          # Фиксируем кодировку
+          # Фиксация кодировки
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           chcp 65001 | Out-Null
 
-          # Переходим в папку с кодом
+          # Установка зависимостей
+          pip install UnityPy tqdm
+
+          # Переход в директорию скрипта
           cd unpack/src
 
-          # Устанавливаем текущую директорию в PYTHONPATH
-          $env:PYTHONPATH = "$(Get-Location);$env:PYTHONPATH"
+          # Запуск с подробным логом
+          $input_path = "../../downloader/output"
+          $output_dir = "../../"
 
-          Write-Host "PYTHONPATH: $env:PYTHONPATH"
-          Write-Host "Содержимое gfunpack:"
-          Get-ChildItem gfunpack -File | Format-Table Name
+          Write-Host "Input: $input_path"
+          Write-Host "Output: $output_dir"
+          Get-ChildItem $input_path -Recurse | Select-Object -First 10 | Format-Table FullName
 
-          # Запускаем основной скрипт
-          python gfunpack/__main__.py ../../downloader/output -o ../../
+          # Запуск скрипта
+          python gfunpack/__main__.py $input_path -o $output_dir 2>&1 | Tee-Object -FilePath "unpack.log"
 
-          # Проверяем результат
+          # Проверка результата
           if ($LASTEXITCODE -ne 0) {
-            Write-Host "::error::Ошибка распаковки (код $LASTEXITCODE)"
+            Get-Content "unpack.log"
+            Write-Host "::error::Скрипт завершился с ошибкой"
             exit 1
           }
 
-          # Проверяем созданные файлы
-          if (-not (Test-Path "../../audio/audio.json")) {
-            Write-Host "::error::Файл audio.json не создан"
-            Get-ChildItem "../../audio" -ErrorAction SilentlyContinue
-            exit 1
+          # Проверка выходных файлов
+          $required_files = @(
+            "$output_dir/audio/audio.json",
+            "$output_dir/images/backgrounds.json"
+          )
+
+          foreach ($file in $required_files) {
+            if (-not (Test-Path $file)) {
+              Write-Host "::error::Отсутствует файл: $file"
+              Get-ChildItem "$output_dir" -Recurse | Format-Table FullName
+              exit 1
+            }
           }
 
       - name: Move Resources
