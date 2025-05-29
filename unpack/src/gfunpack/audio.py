@@ -147,7 +147,7 @@ class BGM:
         self.concurrency = concurrency
         self.clean = clean
         self.resource_files = list(f for f in self.directory.glob('*.acb.dat') if f.name != 'AVG.acb.dat')
-        self.se_resource_file = self.directory.joinpath('AVG.acb.dat')
+        self.se_resource_file = pathlib.Path('unpack/downloader/output/AVG.acb.dat').resolve()
         _test_ffmpeg()
         self.extracted = self.extract_and_convert()
 
@@ -165,7 +165,12 @@ class BGM:
         return list(self.destination.glob('*.wav'))
 
     def _get_audio_template(self):
-        content = utils.read_text_asset(self.directory.joinpath('asset_textes.ab'), 'assets/resources/textdata/audiotemplate.txt')
+        try:
+            content = utils.read_text_asset(pathlib.Path('unpack/downloader/output/asset_textes.ab'),
+                                            'assets/resources/textdata/audiotemplate.txt')
+        except Exception as e:
+            _logger.error(f"Failed to read audiotemplate.txt: {e}")
+            raise
         mapping: dict[str, str] = {}
         for line in (l.strip() for l in content.split('\n')):
             if '//' in line:
@@ -188,6 +193,7 @@ class BGM:
         return mapping
 
     def extract_and_convert(self):
+        _logger.info(f"SE resource file: {self.se_resource_file} (exists: {self.se_resource_file.exists()})")
         _info('extracting se audio')
         _extract_acb_to_wav(self.se_resource_file, self.se_destination, None, self.force, self.clean)
         files = _transcode_files(

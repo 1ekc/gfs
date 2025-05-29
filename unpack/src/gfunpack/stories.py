@@ -433,7 +433,7 @@ class Stories:
         self.destination = utils.check_directory(destination, create=True)
 
         # Путь к ресурсному файлу (учитываем output/)
-        self.resource_file = downloader_dir.joinpath('output', 'asset_textavg.ab')
+        self.resource_file = pathlib.Path('unpack/downloader/output/asset_textavg.ab').resolve()
 
         # Пути к ресурсам (из unpack/)
         audio_path = unpack_dir.joinpath('audio', 'audio.json')
