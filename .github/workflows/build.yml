@@ -143,10 +143,24 @@ jobs:
         run: |
           pnpm install --frozen-lockfile
 
-      - name: Build Project
+      - name: Build Site
         run: |
-          pnpm build-index
-          pnpm build
+          # Убедимся, что файлы на месте
+          Get-ChildItem "../src/assets" | Format-Table Name
+
+          # Установим cross-env для Windows-совместимости
+          pnpm add -D cross-env
+
+          # Собираем проект
+          pnpm build-index || (
+            Write-Host "::error::Ошибка build-index. Проверьте пути к JSON-файлам"
+            exit 1
+          )
+
+          pnpm build || (
+            Write-Host "::error::Ошибка сборки"
+            exit 1
+          )
 
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
