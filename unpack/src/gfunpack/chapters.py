@@ -412,14 +412,19 @@ class Chapters:
     def save(self):
         all_chapters: dict[str, list[dict]] = {}
         all_file_list: list[str] = []
+
+        # Фильтрация файлов и сбор статистики
         for chapters in self.all_chapters.values():
             for chapter in chapters:
                 for story in chapter.stories:
                     story.files = list(
                         filter(lambda f: (f if isinstance(f, str) else f[0]) in self.stories.extracted, story.files))
                     all_file_list.extend((f if isinstance(f, str) else f[0]) for f in story.files)
+
         all_files = set(all_file_list)
         others = set(self.stories.extracted.keys()) - all_files - get_block_list()
+
+        # Добавление неклассифицированных историй
         self.all_chapters['event'].append(Chapter(
             name='未能归类',
             description='程序未能自动归类的故事',
@@ -429,6 +434,21 @@ class Chapters:
             ],
         ))
 
+        # Конвертация в словари
+        for k, chapters in self.all_chapters.items():
+            chapter_dicts = [dataclasses.asdict(c) for c in chapters]
+            all_chapters[k] = chapter_dicts
+
+        # Создаем папку stories если её нет
+        stories_dir = self.stories.destination.parent.joinpath('stories')
+        stories_dir.mkdir(exist_ok=True)
+
+        # Сохранение в stories/chapters.json
+        path = stories_dir.joinpath('chapters.json')
+        with path.open('w', encoding='utf-8') as f:
+            json.dump(all_chapters, f, ensure_ascii=False, indent=2)
+
+        _logger.info(f'Saved chapter index to {path}')
         for k, chapters in self.all_chapters.items():
             chapter_dicts = [dataclasses.asdict(c) for c in chapters]
             all_chapters[k] = chapter_dicts

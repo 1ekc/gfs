@@ -563,9 +563,16 @@ class Stories:
                 self.extracted[name] = path
 
     def save(self):
-        path = self.destination.joinpath('stories.json')
-        with path.open('w', encoding='utf-8') as f:  # Добавлена кодировка
-            f.write(json.dumps(
+        # Явно создаём папку stories
+        stories_dir = self.destination.parent.joinpath('stories')
+        stories_dir.mkdir(parents=True, exist_ok=True)  # parents=True для вложенных путей
+
+        path = stories_dir.joinpath('stories.json')
+        with path.open('w', encoding='utf-8') as f:
+            json.dump(
                 dict((k, str(p.relative_to(self.destination))) for k, p in self.extracted.items()),
+                f,
                 ensure_ascii=False,
-            ))
+                indent=2
+            )
+        _logger.info(f'Saved stories to {path}')

@@ -141,8 +141,8 @@ class BGM:
     def __init__(self, directory: str, destination: str,
                  force: bool = False, concurrency: int = 8, clean: bool = True) -> None:
         self.directory = utils.check_directory(directory)
-        self.destination = utils.check_directory(pathlib.Path(destination).joinpath('bgm'), create=True)
-        self.se_destination = utils.check_directory(pathlib.Path(destination).joinpath('se'), create=True)
+        self.destination = utils.check_directory(destination, create=True)
+        self.se_destination = utils.check_directory(destination, create=True)
         self.force = force
         self.concurrency = concurrency
         self.clean = clean
