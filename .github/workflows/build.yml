@@ -98,15 +98,46 @@ jobs:
       - name: Move Resources
         run: |
           cd unpack
-          # Создаем директории (с проверкой существования)
+
+          # Создаем директории (если их нет)
           if (!(Test-Path "../src/assets")) { New-Item -ItemType Directory -Path "../src/assets" -Force }
           if (!(Test-Path "../public")) { New-Item -ItemType Directory -Path "../public" -Force }
 
-          # Копируем JSON файлы
-          Copy-Item "audio/audio.json", "images/backgrounds.json", "images/characters.json", "stories/stories.json", "stories/chapters.json" -Destination "../src/assets" -Force
+          # Проверяем существование файлов перед копированием
+          $filesToCopy = @(
+            "audio/audio.json",
+            "images/backgrounds.json",
+            "images/characters.json",
+            "stories/stories.json",
+            "stories/chapters.json"
+          )
 
-          # Перемещаем папки
-          Move-Item "audio", "images", "stories" -Destination "../public" -Force
+          foreach ($file in $filesToCopy) {
+            if (Test-Path $file) {
+              Copy-Item $file -Destination "../src/assets" -Force
+              Write-Host "Скопирован $file"
+            } else {
+              Write-Host "Файл $file не найден!"
+            }
+          }
+
+          # Перемещаем папки (с проверкой)
+          $foldersToMove = @("audio", "images", "stories")
+
+          foreach ($folder in $foldersToMove) {
+            if (Test-Path $folder) {
+              Move-Item $folder -Destination "../public" -Force
+              Write-Host "Перемещена папка $folder"
+            } else {
+              Write-Host "Папка $folder не найдена!"
+            }
+          }
+
+          # Логируем результат
+          Write-Host "Содержимое public:"
+          Get-ChildItem "../public" -Recurse | Select-Object FullName
+          Write-Host "Содержимое src/assets:"
+          Get-ChildItem "../src/assets" | Select-Object FullName
 
       - name: Install Project Dependencies
         run: |
