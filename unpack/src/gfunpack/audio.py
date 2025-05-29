@@ -166,7 +166,7 @@ class BGM:
 
     def _get_audio_template(self):
         try:
-            content = utils.read_text_asset(pathlib.Path('unpack/downloader/output/asset_textes.ab'),
+            content = utils.read_text_asset(pathlib.Path('downloader/output/asset_textes.ab'),
                                             'assets/resources/textdata/audiotemplate.txt')
         except Exception as e:
             _logger.error(f"Failed to read audiotemplate.txt: {e}")
