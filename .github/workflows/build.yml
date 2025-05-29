@@ -1,3 +1,5 @@
+[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+chcp 65001
 name: Windows Self-Hosted Build
 
 on:
@@ -12,6 +14,13 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
+
+      - name: Configure Console Encoding
+        run: |
+          # Устанавливаем UTF-8 для корректного отображения русских символов
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          chcp 65001 | Out-Null
+          Write-Host "Кодировка консоли установлена в UTF-8"
 
       - name: Check Disk Space (Windows)
         run: |
@@ -89,11 +98,25 @@ jobs:
             unpack/downloader/output
           key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
 
-      - name: Unpack Resources
+      - name: Unpack resources with logging
         run: |
           cd unpack
-          .\.venv\Scripts\activate
-          python -m gfunpack downloader/output -o .
+          # Запускаем с подробным выводом
+          python -m gfunpack downloader/output -o . --verbose 2>&1 | Tee-Object -FilePath "unpack.log"
+
+          # Показываем лог в консоли
+          Get-Content "unpack.log"
+
+          # Проверяем код завершения
+          if ($LASTEXITCODE -ne 0) {
+            Write-Host "::error::Ошибка распаковки. См. unpack.log"
+            exit 1
+          }
+
+      - name: Debug Folder Structure
+        run: |
+          Write-Host "Полная структура unpack:"
+          tree /F unpack
 
       - name: Verify Unpacked Files
         run: |
@@ -112,7 +135,7 @@ jobs:
 
           foreach ($file in $requiredFiles) {
             if (Test-Path $file) {
-              Write-Host "✔ $file существует"
+              Write-Host "OK: $file существует"
             } else {
               Write-Host "::error::Файл $file не найден!"
               exit 1
