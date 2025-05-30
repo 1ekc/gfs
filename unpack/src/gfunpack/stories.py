@@ -563,14 +563,14 @@ class Stories:
                 self.extracted[name] = path
 
     def save(self):
-        # Явно создаём папку stories
-        stories_dir = self.destination.parent.joinpath('stories')
-        stories_dir.mkdir(parents=True, exist_ok=True)  # parents=True для вложенных путей
+        output_dir = self.destination.parent / 'stories'
+        output_dir.mkdir(exist_ok=True)
 
-        path = stories_dir.joinpath('stories.json')
+        path = output_dir / 'stories.json'
         with path.open('w', encoding='utf-8') as f:
             json.dump(
-                dict((k, str(p.relative_to(self.destination))) for k, p in self.extracted.items()),
+                dict((k, str(p.relative_to(self.destination)))
+                     for k, p in self.extracted.items()),
                 f,
                 ensure_ascii=False,
                 indent=2
