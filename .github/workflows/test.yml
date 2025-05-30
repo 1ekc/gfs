@@ -29,38 +29,12 @@ jobs:
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
 
-      - name: Install vgmstream (fixed method)
+      - name: Install vgmstream
         run: |
-          # Создаем директорию для vgmstream
-          $vgmDir = "C:\vgmstream"
-          New-Item -ItemType Directory -Path $vgmDir -Force
-
-          # Используем рабочий URL из официального репозитория
-          $vgmUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-cli.zip"
-          
-          # Скачиваем архив
-          try {
-              Invoke-WebRequest -Uri $vgmUrl -OutFile "$vgmDir\vgmstream.zip" -ErrorAction Stop
-          } catch {
-              Write-Host "::error::Failed to download vgmstream: $($_.Exception.Message)"
-              exit 1
-          }
-
-          # Распаковываем
-          Expand-Archive -Path "$vgmDir\vgmstream.zip" -DestinationPath $vgmDir -Force
-          Remove-Item -Path "$vgmDir\vgmstream.zip" -Force
-
-          # Добавляем в PATH (новый метод)
-          echo "$vgmDir" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          $env:PATH = "$vgmDir;$env:PATH"
-
-          # Проверяем установку
-          Write-Host "Testing vgmstream installation..."
-          & "$vgmDir\vgmstream-cli.exe" -V
-          if ($LASTEXITCODE -ne 0) {
-              Write-Host "::error::vgmstream-cli verification failed"
-              exit 1
-          }
+          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
+          Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
+          Remove-Item -Path "vgmstream.zip"
+          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
       - name: Verify tools
         run: |
