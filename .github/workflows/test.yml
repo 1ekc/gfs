@@ -16,38 +16,42 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install Chocolatey
-        run: |
-          Set-ExecutionPolicy Bypass -Scope Process -Force
-          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
-
       - name: Install dependencies
         run: |
-          # Python dependencies
+          # Установка Python-зависимостей
           pip install UnityPy chardet tqdm
           cd unpack
           pip install -e .
 
-          # Install ffmpeg
-          choco install ffmpeg -y
+          # Проверка и установка ffmpeg (если еще не установлен)
+          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
+              choco install ffmpeg -y
+          }
 
-          # Install vgmstream manually
-          $vgmstreamUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
-          $tempDir = "C:\temp"
+          # Установка vgmstream из альтернативного источника
+          $vgmstreamUrl = "https://github.com/vgmstream/vgmstream-releases/releases/download/r1882/vgmstream-win64.zip"
+          $tempDir = "C:\vgmstream"
           New-Item -ItemType Directory -Path $tempDir -Force
-          Invoke-WebRequest -Uri $vgmstreamUrl -OutFile "$tempDir\vgmstream.zip"
-          Expand-Archive -Path "$tempDir\vgmstream.zip" -DestinationPath "$tempDir\vgmstream"
-          echo "$tempDir\vgmstream\test" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-
-          # Refresh environment
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-          refreshenv
+          
+          try {
+              # Пробуем скачать через прямой URL
+              Invoke-WebRequest -Uri $vgmstreamUrl -OutFile "$tempDir\vgmstream.zip"
+          } catch {
+              # Если не получилось, используем альтернативный источник
+              $vgmstreamUrl = "https://www.files.vgmstream.org/win64/vgmstream-win64.zip"
+              Invoke-WebRequest -Uri $vgmstreamUrl -OutFile "$tempDir\vgmstream.zip"
+          }
+          
+          Expand-Archive -Path "$tempDir\vgmstream.zip" -DestinationPath $tempDir
+          $env:PATH += ";$tempDir"
+          echo "$tempDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Verify tools
         run: |
+          # Проверка установленных инструментов
           ffmpeg -version
           vgmstream-cli -V
+          Write-Host "Current PATH: $env:PATH"
 
       - name: Verify files exist
         run: |
