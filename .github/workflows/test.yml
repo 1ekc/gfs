@@ -1,12 +1,12 @@
 name: Run Audio Script
 
 on:
-  workflow_dispatch:  # Только ручной запуск через UI GitHub
+  workflow_dispatch:
   push:
 
 jobs:
   run-audio:
-    runs-on: self-hosted
+    runs-on: self-hosted  # Убедитесь, что это Windows-раннер
 
     steps:
       - uses: actions/checkout@v4
@@ -18,23 +18,25 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # Установка Python-зависимостей
           pip install UnityPy chardet tqdm
-          sudo apt-get install -y ffmpeg vgmstream-cli  # Для Linux
-          # Для Windows (если runner Windows):
-          # choco install ffmpeg vgmstream -y
           cd unpack
           pip install -e .
 
+          # Установка ffmpeg и vgmstream для Windows
+          choco install ffmpeg -y
+          choco install vgmstream -y
+          refreshenv
+
       - name: Verify files exist
         run: |
-          ls -R unpack/downloader/output/  # Проверка структуры папок
-          if [ ! -f "unpack/downloader/output/AVG.acb.dat" ]; then
-              echo "::error::Missing AVG.acb.dat in downloader/output"
+          # Проверка существования файлов (PowerShell)
+          if (-not (Test-Path "unpack/downloader/output/AVG.acb.dat")) {
+              Write-Host "::error::Missing AVG.acb.dat in downloader/output"
               exit 1
-          fi
+          }
 
       - name: Run audio.py
         run: |
           cd unpack/tests
-          python -c "from pathlib import Path; print('Current dir:', Path.cwd())"  # Логирование текущей директории
           python test_audio.py
