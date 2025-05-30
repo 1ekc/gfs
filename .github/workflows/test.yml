@@ -21,6 +21,7 @@ jobs:
           git config --global core.quotepath false
           $env:PYTHONUTF8 = "1"
           $env:LC_ALL = "C.UTF-8"
+          $env:ACTIONS_ALLOW_UNSECURE_COMMANDS = "true"
 
       - name: Install Windows Dependencies
         run: |
@@ -28,47 +29,34 @@ jobs:
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
 
-      - name: Install vgmstream (reliable method)
+      - name: Install vgmstream (fixed method)
         run: |
           # Создаем директорию для vgmstream
           $vgmDir = "C:\vgmstream"
           New-Item -ItemType Directory -Path $vgmDir -Force
 
-          # Пробуем разные источники для скачивания vgmstream
-          $sources = @(
-              "https://www.files.vgmstream.org/win64/vgmstream-win64.zip",
-              "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip",
-              "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
-          )
-
-          $success = $false
-          foreach ($source in $sources) {
-              try {
-                  Write-Host "Trying to download from $source"
-                  Invoke-WebRequest -Uri $source -OutFile "$vgmDir\vgmstream.zip" -ErrorAction Stop
-                  $success = $true
-                  break
-              } catch {
-                  Write-Host "Failed to download from $source"
-                  Write-Host $_.Exception.Message
-              }
-          }
-
-          if (-not $success) {
-              Write-Host "::error::All download attempts failed"
+          # Используем рабочий URL из официального репозитория
+          $vgmUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-cli.zip"
+          
+          # Скачиваем архив
+          try {
+              Invoke-WebRequest -Uri $vgmUrl -OutFile "$vgmDir\vgmstream.zip" -ErrorAction Stop
+          } catch {
+              Write-Host "::error::Failed to download vgmstream: $($_.Exception.Message)"
               exit 1
           }
 
-          # Распаковываем архив
+          # Распаковываем
           Expand-Archive -Path "$vgmDir\vgmstream.zip" -DestinationPath $vgmDir -Force
           Remove-Item -Path "$vgmDir\vgmstream.zip" -Force
 
-          # Добавляем в PATH
+          # Добавляем в PATH (новый метод)
+          echo "$vgmDir" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
           $env:PATH = "$vgmDir;$env:PATH"
-          echo "##[add-path]$vgmDir"
 
           # Проверяем установку
-          vgmstream-cli -V
+          Write-Host "Testing vgmstream installation..."
+          & "$vgmDir\vgmstream-cli.exe" -V
           if ($LASTEXITCODE -ne 0) {
               Write-Host "::error::vgmstream-cli verification failed"
               exit 1
@@ -78,15 +66,14 @@ jobs:
         run: |
           Write-Host "=== Tool versions ==="
           ffmpeg -version
-          vgmstream-cli -V
+          & "C:\vgmstream\vgmstream-cli.exe" -V
           
           Write-Host "=== PATH contents ==="
           $env:PATH -split ';' | Where-Object { $_ -ne '' } | ForEach-Object { Write-Host $_ }
 
-          Write-Host "=== vgmstream location ==="
-          Get-Command vgmstream-cli | Select-Object -ExpandProperty Source
-
       - name: Run audio tests
         run: |
+          # Явно указываем путь к vgmstream-cli в коде
+          $env:VGMSTREAM_PATH = "C:\vgmstream\vgmstream-cli.exe"
           cd unpack
           python tests/test_audio.py
