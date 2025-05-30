@@ -59,11 +59,17 @@ jobs:
           .\.venv\Scripts\activate
           pip install --force-reinstall chardet==5.2.0 UnityPy pyjson5
           pip install -r unpack/downloader/requirements.txt
-          
+          # Добавляем путь к unpack в PYTHONPATH
+          echo "PYTHONPATH=${{ github.workspace }}/unpack" >> $env:GITHUB_ENV
           # Проверка установки
           python -c "import chardet; print(f'chardet path: {chardet.__file__}')"
           python -m pip list
-
+      #Проверка путей
+      - name: Debug Python Path
+        run: |
+          .\.venv\Scripts\activate
+          python -c "import sys; print('\n'.join(sys.path))"
+          python -c "from gfunpack import utils; print('Import successful!')" || echo "Import failed"
       # Загрузка ресурсов (если нет в кэше)
       - name: Download Resources
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -91,7 +97,7 @@ jobs:
         run: |
           .\.venv\Scripts\activate
           cd unpack
-          python -m gfunpack downloader/output -o .
+          python -c "from gfunpack import main; main()" downloader/output -o .
           
           # Проверка файлов
           if (!(Test-Path "audio/audio.json")) { throw "audio.json not created!" }
