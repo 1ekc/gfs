@@ -6,7 +6,7 @@ on:
 
 jobs:
   run-audio:
-    runs-on: self-hosted  # Убедитесь, что это Windows-раннер
+    runs-on: self-hosted
 
     steps:
       - uses: actions/checkout@v4
@@ -16,21 +16,41 @@ jobs:
         with:
           python-version: '3.12'
 
+      - name: Install Chocolatey
+        run: |
+          Set-ExecutionPolicy Bypass -Scope Process -Force
+          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
+          iex ((New-Object System.Net.WebClient).DownloadString('https://community.chocolatey.org/install.ps1'))
+
       - name: Install dependencies
         run: |
-          # Установка Python-зависимостей
+          # Python dependencies
           pip install UnityPy chardet tqdm
           cd unpack
           pip install -e .
 
-          # Установка ffmpeg и vgmstream для Windows
+          # Install ffmpeg
           choco install ffmpeg -y
-          choco install vgmstream -y
+
+          # Install vgmstream manually
+          $vgmstreamUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
+          $tempDir = "C:\temp"
+          New-Item -ItemType Directory -Path $tempDir -Force
+          Invoke-WebRequest -Uri $vgmstreamUrl -OutFile "$tempDir\vgmstream.zip"
+          Expand-Archive -Path "$tempDir\vgmstream.zip" -DestinationPath "$tempDir\vgmstream"
+          echo "$tempDir\vgmstream\test" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+          # Refresh environment
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
+
+      - name: Verify tools
+        run: |
+          ffmpeg -version
+          vgmstream-cli -V
 
       - name: Verify files exist
         run: |
-          # Проверка существования файлов (PowerShell)
           if (-not (Test-Path "unpack/downloader/output/AVG.acb.dat")) {
               Write-Host "::error::Missing AVG.acb.dat in downloader/output"
               exit 1
