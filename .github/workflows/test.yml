@@ -1,14 +1,13 @@
-name: Run Audio Script
+name: Windows Self-Hosted Build
 
 on:
   workflow_dispatch:
   push:
 
 jobs:
-  run-audio:
+  build:
     runs-on: self-hosted
     environment: production
-
     steps:
       - uses: actions/checkout@v4
         with:
@@ -22,59 +21,49 @@ jobs:
           $env:PYTHONUTF8 = "1"
           $env:LC_ALL = "C.UTF-8"
 
+      - name: Check Disk Space (Windows)
+        run: |
+          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+
       - name: Install Windows Dependencies
         run: |
-          choco install ffmpeg -y --no-progress
+          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
-
-      - name: Install vgmstream (fixed method)
-        run: |
-          # Устанавливаем в текущую директорию
-          $vgmDir = "$PWD\vgmstream"
-          New-Item -ItemType Directory -Path $vgmDir -Force
-
-          # Используем стабильную версию
-          $vgmUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
-          
-          # Скачиваем и распаковываем
-          try {
-              Invoke-WebRequest -Uri $vgmUrl -OutFile "$vgmDir\vgmstream.zip" -ErrorAction Stop
-              Expand-Archive -Path "$vgmDir\vgmstream.zip" -DestinationPath $vgmDir -Force
-              Remove-Item -Path "$vgmDir\vgmstream.zip" -Force
-              
-              # Проверяем наличие файла
-              if (-not (Test-Path "$vgmDir\vgmstream-cli.exe")) {
-                  Write-Host "::error::vgmstream-cli.exe not found in extracted files"
-                  Get-ChildItem $vgmDir -Recurse | Format-Table FullName
-                  exit 1
-              }
-              
-              # Добавляем в PATH
-              $env:PATH = "$vgmDir;$env:PATH"
-              echo "$vgmDir" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-          } catch {
-              Write-Host "::error::Failed to install vgmstream: $($_.Exception.Message)"
-              exit 1
-          }
-
-      - name: Verify tools
-        run: |
-          Write-Host "=== Tool versions ==="
           ffmpeg -version
-          
-          # Проверяем vgmstream
-          $vgmPath = "$PWD\vgmstream\vgmstream-cli.exe"
-          if (Test-Path $vgmPath) {
-              & $vgmPath -V
-              if ($LASTEXITCODE -ne 0) {
-                  Write-Host "::error::vgmstream-cli returned error code $LASTEXITCODE"
-                  exit 1
-              }
-          } else {
-              Write-Host "::error::vgmstream-cli.exe not found at $vgmPath"
-              exit 1
-          }
+          pngquant --version
+          magick --version
+          git lfs version
+          node --version
+
+      - name: Setup Git LFS
+        run: |
+          git lfs install
+          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
+          git add .gitattributes
+
+      - name: Install vgmstream
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
+          Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
+          Remove-Item -Path "vgmstream.zip"
+          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      - name: Setup PNPM
+        run: |
+          npm install -g pnpm
+          pnpm -v
+
+      - name: Setup Python Environment
+        run: |
+          python -m pip install --upgrade pip
+          pip install pdm
+          cd unpack
+          pdm config venv.in_project true
+          pdm install
+          .\.venv\Scripts\activate
+          pip install pyjson5
+          pip install -r downloader/requirements.txt
 
       - name: Run audio tests
         run: |
