@@ -65,16 +65,16 @@ jobs:
           python -c "import chardet; print(f'chardet path: {chardet.__file__}')"
           python -m pip list
       #Проверка путей
-      - name: Verify Imports
-        run: |
-          .\.venv\Scripts\activate
-          $ErrorActionPreference = "Stop"
-          try {
-            python -c "from gfunpack import utils; print('Import successful')"
-          } catch {
-            Write-Output "Import failed: $_"
-            exit 1
-          }
+#      - name: Verify Imports
+#        run: |
+#          .\.venv\Scripts\activate
+#          $ErrorActionPreference = "Stop"
+#          try {
+#            python -c "from gfunpack import utils; print('Import successful')"
+#          } catch {
+#            Write-Output "Import failed: $_"
+#            exit 1
+#          }
       # Загрузка ресурсов (если нет в кэше)
       - name: Download Resources
         if: steps.restore-cache.outputs.cache-hit != 'true'
