@@ -1,65 +1,101 @@
-name: Audio Script Debug
+name: Audio Debug Test
 
 on:
   workflow_dispatch:
     inputs:
-      skip_steps:
-        description: "Skip steps (comma separated)"
+      test_file:
+        description: "Specific .dat file to test"
         required: false
-        default: ""
+        default: "BGM.acb.dat"
 
 jobs:
-  audio-debug:
+  audio-test:
     runs-on: self-hosted
+    timeout-minutes: 15
     environment: production
 
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup debug environment
+      - name: Setup environment
         run: |
-          # Установка только необходимых зависимостей
-          choco install ffmpeg -y --no-progress
-          pip install tqdm
+          # Проверка существующих инструментов
+          ffmpeg -version
+          python --version
 
-          # Скачиваем vgmstream
-          $vgmUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
-          Invoke-WebRequest -Uri $vgmUrl -OutFile "vgmstream.zip"
-          Expand-Archive -Path "vgmstream.zip" -DestinationPath "vgmstream" -Force
-          echo "$PWD\vgmstream\test" >> $env:GITHUB_PATH
+          # Создаем рабочую директорию
+          mkdir test_workspace
+          cd test_workspace
 
-      - name: Run isolated audio test
+      - name: Download test assets
         run: |
-          # Создаем тестовую среду
-          New-Item -ItemType Directory -Force -Path "test_audio"
-          Copy-Item "unpack/downloader/output/AVG.acb.dat" -Destination "test_audio/"
-          Copy-Item "unpack/downloader/output/BGM.acb.dat" -Destination "test_audio/"
+          # Копируем только указанный тестовый файл
+          cp "../unpack/downloader/output/${{ inputs.test_file }}" .
+          echo "Testing with file: ${{ inputs.test_file }}"
 
-          # Запускаем audio.py напрямую
-          python -c "
-          import sys
-          sys.path.append('unpack/src')
-          from gfunpack import audio
+      - name: Install vgmstream (alternative source)
+        run: |
+          cd test_workspace
           
-          bgm = audio.BGM(
-              directory='test_audio',
-              destination='test_output',
-              force=True,
-              concurrency=1,
-              clean=False
-          )
-          bgm.save()
-          print('=== DEBUG INFO ===')
-          print('Extracted files:', list(bgm.extracted.items())[:3])
-          print('Output exists:', (Path('test_output/audio.json').exists()))
-          "
+          # Альтернативный надежный источник
+          $vgmUrl = "https://files.vgmstream.org/win64/vgmstream-win64.zip"
+          
+          # Попытка скачивания с таймаутом
+          try {
+              $ProgressPreference = 'SilentlyContinue'
+              Invoke-WebRequest -Uri $vgmUrl -OutFile "vgmstream.zip" -TimeoutSec 30
+              Expand-Archive -Path "vgmstream.zip" -DestinationPath "." -Force
+              rm "vgmstream.zip"
+          } catch {
+              Write-Host "::warning::Failed to download from primary source, trying backup..."
+              $vgmUrl = "https://github.com/losnoco/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip"
+              Invoke-WebRequest -Uri $vgmUrl -OutFile "vgmstream.zip" -TimeoutSec 30
+              Expand-Archive -Path "vgmstream.zip" -DestinationPath "." -Force
+              rm "vgmstream.zip"
+          }
 
-          # Детальная проверка результатов
-          if (Test-Path "test_output/audio.json") {
-              Write-Host "SUCCESS: audio.json created"
-              Get-Content "test_output/audio.json" | Select-Object -First 20
+          # Проверка установки
+          if (Test-Path "test/vgmstream-cli.exe") {
+              echo "VGMStream installed successfully"
+              ./test/vgmstream-cli.exe -V
           } else {
-              Write-Host "::error::audio.json not created"
-              Get-ChildItem "test_output" -Recurse | Format-Table FullName
+              echo "::error::VGMStream installation failed"
+              Get-ChildItem -Recurse | Format-Table Name, Length
               exit 1
           }
+
+      - name: Run conversion test
+        run: |
+          cd test_workspace
+          
+          # Конвертируем тестовый файл
+          ./test/vgmstream-cli.exe "${{ inputs.test_file }}" -o "output.wav"
+          
+          # Проверяем результат
+          if (Test-Path "output.wav") {
+              echo "WAV file created successfully"
+              ffmpeg -i "output.wav" -c:a aac "output.m4a"
+              
+              if (Test-Path "output.m4a") {
+                  echo "M4A file created successfully"
+                  mkdir "../test_output"
+                  cp "output.m4a" "../test_output/"
+              else
+                  echo "::error::FFmpeg conversion failed"
+                  exit 1
+              fi
+          else
+              echo "::error::VGMStream conversion failed"
+              exit 1
+          fi
+
+      - name: Verify results
+        run: |
+          if (Test-Path "test_output/output.m4a") {
+              echo "::set-output name=result::SUCCESS"
+              echo "Test completed successfully"
+          else
+              echo "::set-output name=result::FAILED"
+              echo "::error::Final output file not found"
+              exit 1
+          fi
