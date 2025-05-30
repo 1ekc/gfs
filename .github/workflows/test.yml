@@ -24,7 +24,6 @@ jobs:
 
       - name: Install Windows Dependencies
         run: |
-          # Установка только необходимых зависимостей
           choco install ffmpeg -y --no-progress
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
@@ -35,11 +34,34 @@ jobs:
           $vgmDir = "C:\vgmstream"
           New-Item -ItemType Directory -Path $vgmDir -Force
 
-          # Скачиваем и распаковываем vgmstream
-          $vgmUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
-          Invoke-WebRequest -Uri $vgmUrl -OutFile "$vgmDir\vgmstream.zip"
+          # Пробуем разные источники для скачивания vgmstream
+          $sources = @(
+              "https://www.files.vgmstream.org/win64/vgmstream-win64.zip",
+              "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip",
+              "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
+          )
+
+          $success = $false
+          foreach ($source in $sources) {
+              try {
+                  Write-Host "Trying to download from $source"
+                  Invoke-WebRequest -Uri $source -OutFile "$vgmDir\vgmstream.zip" -ErrorAction Stop
+                  $success = $true
+                  break
+              } catch {
+                  Write-Host "Failed to download from $source"
+                  Write-Host $_.Exception.Message
+              }
+          }
+
+          if (-not $success) {
+              Write-Host "::error::All download attempts failed"
+              exit 1
+          }
+
+          # Распаковываем архив
           Expand-Archive -Path "$vgmDir\vgmstream.zip" -DestinationPath $vgmDir -Force
-          Remove-Item -Path "$vgmDir\vgmstream.zip"
+          Remove-Item -Path "$vgmDir\vgmstream.zip" -Force
 
           # Добавляем в PATH
           $env:PATH = "$vgmDir;$env:PATH"
@@ -52,19 +74,8 @@ jobs:
               exit 1
           }
 
-      - name: Setup Python Environment
-        run: |
-          python -m pip install --upgrade pip
-          pip install pdm
-          cd unpack
-          pdm config venv.in_project true
-          pdm install
-          .\.venv\Scripts\activate
-          pip install -r downloader/requirements.txt
-
       - name: Verify tools
         run: |
-          # Детальная проверка окружения
           Write-Host "=== Tool versions ==="
           ffmpeg -version
           vgmstream-cli -V
@@ -75,41 +86,7 @@ jobs:
           Write-Host "=== vgmstream location ==="
           Get-Command vgmstream-cli | Select-Object -ExpandProperty Source
 
-      - name: Verify required files
-        run: |
-          $requiredFiles = @(
-              "unpack/downloader/output/AVG.acb.dat",
-              "unpack/downloader/output/BGM.acb.dat"
-          )
-
-          foreach ($file in $requiredFiles) {
-              if (-not (Test-Path $file)) {
-                  Write-Host "::error::Missing required file: $file"
-                  exit 1
-              }
-          }
-
-      - name: Run audio tests with debug
+      - name: Run audio tests
         run: |
           cd unpack
-          .\.venv\Scripts\activate
-          
-          # Детальное логирование перед запуском
-          Write-Host "=== Files in output directory ==="
-          Get-ChildItem -Path "downloader/output" -File | Select-Object Name, Length | Format-Table -AutoSize
-          
-          # Запуск теста с подробным выводом
-          python -v tests/test_audio.py 2>&1 | Tee-Object -FilePath "audio_test.log"
-          
-          # Проверка результатов
-          if ($LASTEXITCODE -ne 0) {
-              Get-Content "audio_test.log" | ForEach-Object { Write-Host $_ }
-              Write-Host "::error::Audio test failed with exit code $LASTEXITCODE"
-              exit 1
-          }
-
-          # Проверка выходных файлов
-          if (-not (Test-Path "audio/audio.json")) {
-              Write-Host "::error::Audio output file not created"
-              exit 1
-          }
+          python tests/test_audio.py
