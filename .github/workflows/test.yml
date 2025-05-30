@@ -19,10 +19,11 @@ jobs:
         run: |
           pip install UnityPy chardet tqdm
           cd unpack
-          pip install -e .
+          pip install -e .  # Если есть setup.py
 
       - name: Run audio.py
         run: |
           cd unpack
-          export PYTHONPATH="$PYTHONPATH:$GITHUB_WORKSPACE/unpack/src"
+          # Для Windows/PowerShell:
+          $env:PYTHONPATH = "$env:PYTHONPATH;$env:GITHUB_WORKSPACE\unpack\src"
           python tests/test_audio.py
