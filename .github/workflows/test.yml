@@ -19,11 +19,18 @@ jobs:
         run: |
           pip install UnityPy chardet tqdm
           cd unpack
-          pip install -e .  # Если есть setup.py
+          pip install -e .
+
+      - name: Verify files exist
+        run: |
+          # Проверяем существование нужных файлов
+          if (-not (Test-Path "unpack/downloader/output/AVG.acb.dat")) {
+              Write-Host "::error::Missing AVG.acb.dat in downloader/output"
+              exit 1
+          }
 
       - name: Run audio.py
         run: |
-          cd unpack
-          # Для Windows/PowerShell:
-          $env:PYTHONPATH = "$env:PYTHONPATH;$env:GITHUB_WORKSPACE\unpack\src"
-          python tests/test_audio.py
+          cd $env:GITHUB_WORKSPACE
+          $env:PYTHONPATH = "$env:PYTHONPATH;$env:GITHUB_WORKSPACE/unpack/src"
+          python unpack/tests/test_audio.py
