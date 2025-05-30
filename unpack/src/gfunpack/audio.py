@@ -147,7 +147,7 @@ class BGM:
         self.concurrency = concurrency
         self.clean = clean
         self.resource_files = list(f for f in self.directory.glob('*.acb.dat') if f.name != 'AVG.acb.dat')
-        self.se_resource_file = pathlib.Path('unpack/downloader/output/AVG.acb.dat').resolve()
+        self.se_resource_file = self.directory / 'AVG.acb.dat'
         _test_ffmpeg()
         self.extracted = self.extract_and_convert()
 

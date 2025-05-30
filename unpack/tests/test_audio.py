@@ -5,11 +5,17 @@ import logging
 
 def test_audio_conversion():
     # 1. Настройка путей
-    input_dir = pathlib.Path('downloader/output')
-    output_dir = pathlib.Path('unpack/audio')
+    input_dir = pathlib.Path('downloader/output').resolve()
+    output_dir = pathlib.Path('unpack/audio').resolve()
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 2. Инициализация и обработка аудио
+    # 2. Проверка наличия необходимых файлов
+    required_files = ['AVG.acb.dat', 'asset_textes.ab']
+    for file in required_files:
+        if not (input_dir / file).exists():
+            raise FileNotFoundError(f"Required file not found: {input_dir / file}")
+
+    # 3. Инициализация и обработка аудио
     bgm = BGM(
         directory=str(input_dir),
         destination=str(output_dir),
@@ -18,7 +24,7 @@ def test_audio_conversion():
         clean=True
     )
 
-    # 3. Сохранение результата
+    # 4. Сохранение результата
     json_path = bgm.save()
     print(f"Audio data saved to: {json_path}")
 
