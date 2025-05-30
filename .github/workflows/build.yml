@@ -2,7 +2,7 @@ name: Windows Self-Hosted Build
 
 on:
   workflow_dispatch:
-  push:
+#  push:
 
 jobs:
   build:
