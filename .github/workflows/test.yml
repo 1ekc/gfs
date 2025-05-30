@@ -1,73 +1,65 @@
-name: Windows Self-Hosted Build
+name: Audio Script Debug
 
 on:
   workflow_dispatch:
-  push:
+    inputs:
+      skip_steps:
+        description: "Skip steps (comma separated)"
+        required: false
+        default: ""
 
 jobs:
-  build:
+  audio-debug:
     runs-on: self-hosted
     environment: production
+
     steps:
       - uses: actions/checkout@v4
-        with:
-          submodules: 'recursive'
 
-      - name: Configure system encoding
+      - name: Setup debug environment
         run: |
-          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          chcp 65001 | Out-Null
-          git config --global core.quotepath false
-          $env:PYTHONUTF8 = "1"
-          $env:LC_ALL = "C.UTF-8"
+          # Установка только необходимых зависимостей
+          choco install ffmpeg -y --no-progress
+          pip install tqdm
 
-      - name: Check Disk Space (Windows)
-        run: |
-          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+          # Скачиваем vgmstream
+          $vgmUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
+          Invoke-WebRequest -Uri $vgmUrl -OutFile "vgmstream.zip"
+          Expand-Archive -Path "vgmstream.zip" -DestinationPath "vgmstream" -Force
+          echo "$PWD\vgmstream\test" >> $env:GITHUB_PATH
 
-      - name: Install Windows Dependencies
+      - name: Run isolated audio test
         run: |
-          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-          refreshenv
-          ffmpeg -version
-          pngquant --version
-          magick --version
-          git lfs version
-          node --version
+          # Создаем тестовую среду
+          New-Item -ItemType Directory -Force -Path "test_audio"
+          Copy-Item "unpack/downloader/output/AVG.acb.dat" -Destination "test_audio/"
+          Copy-Item "unpack/downloader/output/BGM.acb.dat" -Destination "test_audio/"
 
-      - name: Setup Git LFS
-        run: |
-          git lfs install
-          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
-          git add .gitattributes
+          # Запускаем audio.py напрямую
+          python -c "
+          import sys
+          sys.path.append('unpack/src')
+          from gfunpack import audio
+          
+          bgm = audio.BGM(
+              directory='test_audio',
+              destination='test_output',
+              force=True,
+              concurrency=1,
+              clean=False
+          )
+          bgm.save()
+          print('=== DEBUG INFO ===')
+          print('Extracted files:', list(bgm.extracted.items())[:3])
+          print('Output exists:', (Path('test_output/audio.json').exists()))
+          "
 
-      - name: Install vgmstream
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
-          Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
-          Remove-Item -Path "vgmstream.zip"
-          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-
-      - name: Setup PNPM
-        run: |
-          npm install -g pnpm
-          pnpm -v
-
-      - name: Setup Python Environment
-        run: |
-          python -m pip install --upgrade pip
-          pip install pdm
-          cd unpack
-          pdm config venv.in_project true
-          pdm install
-          .\.venv\Scripts\activate
-          pip install pyjson5
-          pip install -r downloader/requirements.txt
-
-      - name: Run audio tests
-        run: |
-          # Указываем путь к vgmstream через переменную окружения
-          $env:VGMSTREAM_PATH = "$PWD\vgmstream\vgmstream-cli.exe"
-          cd unpack
-          python tests/test_audio.py
+          # Детальная проверка результатов
+          if (Test-Path "test_output/audio.json") {
+              Write-Host "SUCCESS: audio.json created"
+              Get-Content "test_output/audio.json" | Select-Object -First 20
+          } else {
+              Write-Host "::error::audio.json not created"
+              Get-ChildItem "test_output" -Recurse | Format-Table FullName
+              exit 1
+          }

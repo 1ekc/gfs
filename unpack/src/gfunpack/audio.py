@@ -193,9 +193,13 @@ class BGM:
         return mapping
 
     def extract_and_convert(self):
+        print(f"Starting processing {len(self.resource_files)} files")
+        for file in self.resource_files:
+            print(f"Processing {file.name}")
         _logger.info(f"SE resource file: {self.se_resource_file} (exists: {self.se_resource_file.exists()})")
         _info('extracting se audio')
         _extract_acb_to_wav(self.se_resource_file, self.se_destination, None, self.force, self.clean)
+        print(f"Extracting {dat.name} to {destination}")
         files = _transcode_files(
             list(self.se_destination.glob('*.wav')),
             self.force,
