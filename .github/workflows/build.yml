@@ -97,28 +97,98 @@ jobs:
             unpack/downloader/output
           key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
+      # Image processing
+      - name: Restore Cached Images
+        id: restore-image-resources
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            unpack/images
+          key: gf-image-resources-${{ runner.os }}
+
+      - name: Process images
+        run: |
+          cd unpack
+          .\.venv\Scripts\activate
+          python tests/test_backgrounds.py
+          python tests/test_characters.py
+      - name: Cache Images
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            unpack/images
+          key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
+
+      # Audio processing
+      - name: Restore Cached Audio
+        id: restore-audio-resources
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            unpack/audio
+          key: gf-audio-resources-${{ runner.os }}
+
+      - name: Validate Audio Resources
+        run: |
+          $requiredAudioFiles = @(
+              "unpack/downloader/output/asset_textes.ab",
+              "unpack/downloader/output/AVG.acb.dat"
+          )
+          foreach ($file in $requiredAudioFiles) {
+              if (-not (Test-Path $file)) {
+                  Write-Host "::error file=$file::Required audio file missing"
+                  exit 1
+              }
+          }
+      - name: Process audio
+        run: |
+          cd unpack
+          .\.venv\Scripts\activate
+          python tests/test_audio.py
+      - name: Verify Audio Output
+        run: |
+          if (-not (Test-Path "unpack/audio/audio.json")) {
+              Write-Host "::error::Audio processing failed - no output JSON"
+              exit 1
+          }
+          $audioJson = Get-Content "unpack/audio/audio.json" | ConvertFrom-Json
+          if ($audioJson.Count -eq 0) {
+              Write-Host "::error::Audio JSON is empty"
+              exit 1
+          }
+      - name: Cache Audio
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            unpack/audio
+          key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
+
       # Распаковка ресурсов
       - name: Unpack Resources
         run: |
           .\.venv\Scripts\activate
           cd unpack
-          python -c "from gfunpack import main; main()" downloader/output -o .
-
+          # Прямой вызов main.py вместо импорта
+          python gfunpack/main.py downloader/output -o .
+          
           # Проверка файлов
-          if (!(Test-Path "audio/audio.json")) { throw "audio.json not created!" }
-          if (!(Test-Path "images/backgrounds.json")) { throw "backgrounds.json not created!" }
-          if (!(Test-Path "images/characters.json")) { throw "characters.json not created!" }
+          if (-not (Test-Path "audio/audio.json")) { 
+            Write-Error "audio.json not created!"
+            exit 1
+          }
+          if (-not (Test-Path "images/backgrounds.json")) { 
+            Write-Error "backgrounds.json not created!"
+            exit 1
+          }
 
       # Перенос ресурсов
       - name: Move Resources
         run: |
           cd unpack
-          mkdir -p ../src/assets
-          cp audio/audio.json images/backgrounds.json images/characters.json stories/stories.json stories/chapters.json ../src/assets
-          mkdir -p ../public
-          mv audio ../public
-          mv images ../public
-          mv stories ../public
+          New-Item -ItemType Directory -Path ../src/assets -Force
+          Copy-Item -Path audio/audio.json, images/backgrounds.json, images/characters.json, stories/stories.json, stories/chapters.json -Destination ../src/assets
+          New-Item -ItemType Directory -Path ../public -Force
+          Move-Item -Path audio, images, stories -Destination ../public
 
       # Сборка проекта
       - name: Install Project Dependencies
