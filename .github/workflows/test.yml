@@ -1,0 +1,27 @@
+name: Run Audio Script
+
+on:
+  workflow_dispatch:  # Позволяет запускать вручную через UI GitHub
+
+jobs:
+  run-audio:
+    runs-on: self-hosted  # Используем self-hosted runner
+    environment: production  # Опционально: укажите окружение
+
+    steps:
+      - uses: actions/checkout@v4  # Клонируем репозиторий
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.12'  # Укажите нужную версию Python
+
+      - name: Install dependencies
+        run: |
+          pip install -r unpack/requirements.txt  # Установите зависимости, если есть
+          pip install UnityPy chardet tqdm  # Основные библиотеки для audio.py
+
+      - name: Run audio.py
+        run: |
+          cd unpack  # Переходим в папку, где лежит скрипт
+          python tests/test_audio.py  # Запускаем скрипт
