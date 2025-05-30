@@ -410,80 +410,29 @@ class Chapters:
         return all_chapters
 
     def save(self):
-        # Подготовка данных
-        all_chapters = self._prepare_chapter_data()
-
-        # Создание директории
-        stories_dir = self.stories.destination.parent.joinpath('stories')
-        stories_dir.mkdir(parents=True, exist_ok=True)
-
-        # Сохранение файла
-        output_path = stories_dir.joinpath('chapters.json')
-        self._save_to_json(all_chapters, output_path)
-
-        _logger.info(f'Saved chapter index to {output_path}')
-        return output_path
-
-    def _prepare_chapter_data(self) -> dict[str, list[dict]]:
-        """Подготавливает данные глав для сохранения в JSON."""
-        all_chapters = {}
-        all_files = set()
-
-        # Фильтрация и сбор файлов
-        for category, chapters in self.all_chapters.items():
-            filtered_chapters = []
-
+        all_chapters: dict[str, list[dict]] = {}
+        all_file_list: list[str] = []
+        for chapters in self.all_chapters.values():
             for chapter in chapters:
-                filtered_stories = []
-
                 for story in chapter.stories:
-                    # Фильтрация существующих файлов
-                    valid_files = [
-                        f for f in story.files
-                        if (f if isinstance(f, str) else f[0]) in self.stories.extracted
-                    ]
-
-                    if valid_files:
-                        new_story = dataclasses.replace(story, files=valid_files)
-                        filtered_stories.append(new_story)
-                        all_files.update(f if isinstance(f, str) else f[0] for f in valid_files)
-
-                if filtered_stories:
-                    new_chapter = dataclasses.replace(chapter, stories=filtered_stories)
-                    filtered_chapters.append(new_chapter)
-
-            if filtered_chapters:
-                all_chapters[category] = filtered_chapters
-
-        # Добавление неклассифицированных историй
+                    story.files = list(
+                        filter(lambda f: (f if isinstance(f, str) else f[0]) in self.stories.extracted, story.files))
+                    all_file_list.extend((f if isinstance(f, str) else f[0]) for f in story.files)
+        all_files = set(all_file_list)
         others = set(self.stories.extracted.keys()) - all_files - get_block_list()
-        if others:
-            unclassified = Chapter(
-                name='未能归类',
-                description='程序未能自动归类的故事',
-                stories=[Story(name=f, description='', files=[f]) for f in sorted(others)]
-            )
-            all_chapters.setdefault('event', []).append(unclassified)
+        self.all_chapters['event'].append(Chapter(
+            name='未能归类',
+            description='程序未能自动归类的故事',
+            stories=[
+                Story(name=file, description='', files=[file])
+                for file in sorted(others)
+            ],
+        ))
 
-        # Конвертация в словари
-        return {
-            k: [dataclasses.asdict(c) for c in chapters]
-            for k, chapters in all_chapters.items()
-        }
+        for k, chapters in self.all_chapters.items():
+            chapter_dicts = [dataclasses.asdict(c) for c in chapters]
+            all_chapters[k] = chapter_dicts
 
-    def _save_to_json(self, data: dict, path: pathlib.Path):
-        """Безопасное сохранение данных в JSON файл."""
-        temp_path = path.with_suffix('.tmp.json')
-
-        try:
-            # Сначала пишем во временный файл
-            with temp_path.open('w', encoding='utf-8') as f:
-                json.dump(data, f, ensure_ascii=False, indent=2)
-
-            # Атомарная замена файла
-            temp_path.replace(path)
-        except Exception as e:
-            if temp_path.exists():
-                temp_path.unlink()
-            _logger.error(f"Failed to save chapters: {str(e)}")
-            raise
+        # Исправленная часть - добавлено указание кодировки
+        with self.stories.destination.joinpath('chapters.json').open('w', encoding='utf-8') as f:
+            json.dump(all_chapters, f, ensure_ascii=False, indent=2)

@@ -82,15 +82,10 @@ class Mapper:
     def write_indices(self):
         data = self.mapped
         dest_dir = self.characters.destination
-        # Создаем папку images если её нет
-        images_dir = dest_dir.parent.joinpath('images')
-        images_dir.mkdir(exist_ok=True)
-
-        temp_path = images_dir.joinpath('mapped.json')
-        final_path = images_dir.joinpath('characters.json')
+        temp_path = dest_dir.joinpath('mapped.json')
+        final_path = dest_dir.joinpath('characters.json')
 
         with open(temp_path, 'w', encoding='utf-8') as f:
             json.dump(data, f, indent=2, ensure_ascii=False)
 
-        temp_path.replace(final_path)
-        _logger.info(f'Saved character mappings to {final_path}')
+        temp_path.replace(final_path)  # replace() автоматически удаляет целевой файл если он существует

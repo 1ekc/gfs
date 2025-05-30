@@ -38,7 +38,7 @@ class BackgroundCollection:
 
     def __init__(self, directory: str, destination: str, pngquant: bool = False, force: bool = False, concurrency: int = 8) -> None:
         self.directory = utils.check_directory(directory)
-        self.destination = utils.check_directory(destination, create=True)
+        self.destination = utils.check_directory(pathlib.Path(destination).joinpath('background'), create=True)
         self.pngquant = utils.test_pngquant(pngquant)
         self.force = force
         self.concurrency = concurrency

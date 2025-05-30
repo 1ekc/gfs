@@ -1,52 +1,48 @@
-import logging
+import argparse
 import os
 import pathlib
-import subprocess
-import typing
 
-import UnityPy
-from UnityPy.classes import TextAsset
-
-_logger = logging.getLogger('gfunpack.utils')
-_warning = _logger.warning
+from gfunpack import audio, backgrounds, chapters, characters, mapper, prefabs, stories
 
 
-def check_directory(directory: pathlib.Path | str, create: bool = False) -> pathlib.Path:
-    d = pathlib.Path(directory)
-    if not d.exists() and create:
-        os.makedirs(d)
-    if not d.exists() or not d.is_dir():
-        raise ValueError(f'{d} is not a valid directory')
-    return d.resolve()
+parser = argparse.ArgumentParser()
+parser.add_argument('dir')
+parser.add_argument('-o', '--output', required=True)
+parser.add_argument('--no-clean', action='store_true')
+parser.add_argument('--lang', default='rus', choices=['rus', 'ch'],
+                   help='Localization language (rus/ch)')
+args = parser.parse_args()
 
+cpus = os.cpu_count() or 2
 
-def test_pngquant(use_pngquant: bool):
-    if not use_pngquant:
-        return False
-    else:
-        try:
-            subprocess.run(['pngquant', '--help'], stdout=subprocess.DEVNULL).check_returncode()
-            return True
-        except FileNotFoundError as e:
-            _warning('pngquant not available', exc_info=e)
-            return False
+downloaded = args.dir
+destination = pathlib.Path(args.output)
 
+images = destination.joinpath('images')
+bg = backgrounds.BackgroundCollection(
+    str(downloaded),
+    str(destination),
+    pngquant=True,
+    concurrency=cpus
+)
+bg.save()
 
-def pngquant(image_path: pathlib.Path, use_pngquant: bool):
-    # pngquant to minimize the image
-    if use_pngquant:
-        quant_path = image_path.with_suffix('.fs8.png')
-        subprocess.run(['pngquant', image_path, '--ext', '.fs8.png', '--strip']).check_returncode()
-        os.replace(quant_path, image_path)
+sprite_indices = prefabs.Prefabs(downloaded)
+chars = characters.CharacterCollection(downloaded, str(images), sprite_indices, pngquant=True, concurrency=cpus)
+chars.extract()
 
+character_mapper = mapper.Mapper(sprite_indices, chars)
+character_mapper.write_indices()
 
-def read_text_asset(bundle: pathlib.Path, container: str):
-    asset = UnityPy.load(str(bundle))
-    profile_reader = [o for o in asset.objects if o.container == container][0]
-    assert profile_reader.type.name == 'TextAsset'
-    profile = typing.cast(
-        TextAsset,
-        profile_reader.read(),
-    )
-    content: str = profile.m_Script.tobytes().decode()
-    return content
+bgm = audio.BGM(downloaded, str(destination.joinpath('audio')), concurrency=cpus, clean=not args.no_clean)
+bgm.save()
+
+ss = stories.Stories(
+    str(pathlib.Path(downloaded).parent),  # передаем unpack/ вместо downloader/
+    str(destination.joinpath('stories')),
+    gf_data_directory=str(pathlib.Path(downloaded).parent.joinpath(f'gf-data-{args.lang}')),
+    lang=args.lang
+)
+ss.save()
+cs = chapters.Chapters(ss)
+cs.save()

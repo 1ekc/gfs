@@ -433,7 +433,7 @@ class Stories:
         self.destination = utils.check_directory(destination, create=True)
 
         # Путь к ресурсному файлу (учитываем output/)
-        self.resource_file = pathlib.Path('unpack/downloader/output/asset_textavg.ab').resolve()
+        self.resource_file = downloader_dir.joinpath('output', 'asset_textavg.ab')
 
         # Пути к ресурсам (из unpack/)
         audio_path = unpack_dir.joinpath('audio', 'audio.json')
@@ -563,16 +563,9 @@ class Stories:
                 self.extracted[name] = path
 
     def save(self):
-        output_dir = self.destination.parent / 'stories'
-        output_dir.mkdir(exist_ok=True)
-
-        path = output_dir / 'stories.json'
-        with path.open('w', encoding='utf-8') as f:
-            json.dump(
-                dict((k, str(p.relative_to(self.destination)))
-                     for k, p in self.extracted.items()),
-                f,
+        path = self.destination.joinpath('stories.json')
+        with path.open('w', encoding='utf-8') as f:  # Добавлена кодировка
+            f.write(json.dumps(
+                dict((k, str(p.relative_to(self.destination))) for k, p in self.extracted.items()),
                 ensure_ascii=False,
-                indent=2
-            )
-        _logger.info(f'Saved stories to {path}')
+            ))
