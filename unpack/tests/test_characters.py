@@ -21,8 +21,8 @@ def test_characters():
     character_collection.extract()
 
     # 4. Создание маппинга и сохранение JSON
-    mapper = Mapper(prefabs=sprite_indices, characters=character_collection)
-    mapper.write_indices()  # Создаст characters.json в unpack/images/
+    mapper = Mapper(sprite_indices, chars)
+    mapper.write_indices()  # Это создаст characters.json
 
 
 if __name__ == '__main__':

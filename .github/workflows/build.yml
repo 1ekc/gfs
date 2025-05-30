@@ -2,7 +2,7 @@ name: Windows Self-Hosted Build
 
 on:
   workflow_dispatch:
-  push:
+
 jobs:
   build:
     runs-on: self-hosted
@@ -235,11 +235,11 @@ jobs:
 
           # Copy JSON files
           $copiedFiles = @(
-              @{source="audio/audio.json"; dest="../src/assets"},
-              @{source="images/backgrounds.json"; dest="../src/assets"},
-              @{source="images/characters.json"; dest="../src/assets"},
-              @{source="stories/stories.json"; dest="../src/assets"},
-              @{source="stories/chapters.json"; dest="../src/assets"}
+              @{source="unpack/audio/audio.json"; dest="src/assets"},
+              @{source="unpack/images/backgrounds.json"; dest="src/assets"},
+              @{source="unpack/images/characters.json"; dest="src/assets"},
+              @{source="unpack/stories/stories.json"; dest="src/assets"},
+              @{source="unpack/stories/chapters.json"; dest="src/assets"}
           )
 
           $anyCopied = $false
