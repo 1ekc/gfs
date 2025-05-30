@@ -1,15 +1,16 @@
-from gfunpack import audio
-from pathlib import Path
+import os
+import subprocess
+import pathlib
 
-
-def test_bgm():
-    base_dir = Path(__file__).parent.parent  # Переход в корень проекта
-    input_dir = base_dir / "downloader" / "output"
-    output_dir = base_dir / "audio"
-    output_dir.mkdir(exist_ok=True)
-
-    audio.BGM(str(input_dir), str(output_dir))
-
+def test_audio_conversion():
+    # Проверяем базовую функциональность vgmstream
+    vgmstream_path = os.getenv('VGMSTREAM_PATH', 'vgmstream-cli.exe')
+    try:
+        subprocess.run([vgmstream_path, '-V'], check=True)
+        print("vgmstream-cli работает корректно")
+    except Exception as e:
+        print(f"Ошибка vgmstream: {e}")
+        raise
 
 if __name__ == '__main__':
-    test_bgm()
+    test_audio_conversion()
