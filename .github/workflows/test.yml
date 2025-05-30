@@ -24,27 +24,33 @@ jobs:
 
       - name: Install Windows Dependencies
         run: |
-          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
+          # Установка только необходимых зависимостей
+          choco install ffmpeg -y --no-progress
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
-          ffmpeg -version
-          pngquant --version
-          magick --version
-          git lfs version
-          node --version
 
-      - name: Setup Git LFS
+      - name: Install vgmstream (reliable method)
         run: |
-          git lfs install
-          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
-          git add .gitattributes
+          # Создаем директорию для vgmstream
+          $vgmDir = "C:\vgmstream"
+          New-Item -ItemType Directory -Path $vgmDir -Force
 
-      - name: Install vgmstream
-        run: |
-          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
-          Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
-          Remove-Item -Path "vgmstream.zip"
-          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          # Скачиваем и распаковываем vgmstream
+          $vgmUrl = "https://github.com/vgmstream/vgmstream/releases/download/r1882/vgmstream-win64.zip"
+          Invoke-WebRequest -Uri $vgmUrl -OutFile "$vgmDir\vgmstream.zip"
+          Expand-Archive -Path "$vgmDir\vgmstream.zip" -DestinationPath $vgmDir -Force
+          Remove-Item -Path "$vgmDir\vgmstream.zip"
+
+          # Добавляем в PATH
+          $env:PATH = "$vgmDir;$env:PATH"
+          echo "##[add-path]$vgmDir"
+
+          # Проверяем установку
+          vgmstream-cli -V
+          if ($LASTEXITCODE -ne 0) {
+              Write-Host "::error::vgmstream-cli verification failed"
+              exit 1
+          }
 
       - name: Setup Python Environment
         run: |
@@ -54,59 +60,56 @@ jobs:
           pdm config venv.in_project true
           pdm install
           .\.venv\Scripts\activate
-          pip install pyjson5
           pip install -r downloader/requirements.txt
-
-#      - name: Restore Cached Resources
-#        id: restore-gf-downloader-resources
-#        uses: actions/cache/restore@v4
-#        with:
-#          path: |
-#            unpack/downloader/output
-#          key: gf-downloader-resources-${{ runner.os }}
-#
-#      - name: Download Resources (if cache missed)
-#        if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
-#        env:
-#          GD_DATA: ${{ secrets.GD_DATA }}
-#
-#        run: |
-#          cd unpack/downloader
-#          if (!(Test-Path "config.json5")) {
-#            Write-Error "Файл config.json5 не найден!"
-#            exit 1
-#          }
-#          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
       - name: Verify tools
         run: |
+          # Детальная проверка окружения
+          Write-Host "=== Tool versions ==="
           ffmpeg -version
           vgmstream-cli -V
-          Write-Host "Current PATH: $env:PATH"
+          
+          Write-Host "=== PATH contents ==="
+          $env:PATH -split ';' | Where-Object { $_ -ne '' } | ForEach-Object { Write-Host $_ }
 
-      - name: Verify files exist
+          Write-Host "=== vgmstream location ==="
+          Get-Command vgmstream-cli | Select-Object -ExpandProperty Source
+
+      - name: Verify required files
         run: |
-          if (-not (Test-Path "unpack/downloader/output/AVG.acb.dat")) {
-              Write-Host "::error::Missing AVG.acb.dat in downloader/output"
-              exit 1
+          $requiredFiles = @(
+              "unpack/downloader/output/AVG.acb.dat",
+              "unpack/downloader/output/BGM.acb.dat"
+          )
+
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  Write-Host "::error::Missing required file: $file"
+                  exit 1
+              }
           }
 
-      - name: Clean previous audio output
-        run: |
-          if (Test-Path "unpack/audio") {
-              Remove-Item -Path "unpack/audio" -Recurse -Force
-          }
-
-      - name: Run audio tests
+      - name: Run audio tests with debug
         run: |
           cd unpack
           .\.venv\Scripts\activate
-          python tests/test_audio.py
-
-      - name: Verify audio output
-        run: |
-          if (-not (Test-Path "unpack/audio/audio.json")) {
-              Write-Host "::error::Audio processing failed - no output file"
+          
+          # Детальное логирование перед запуском
+          Write-Host "=== Files in output directory ==="
+          Get-ChildItem -Path "downloader/output" -File | Select-Object Name, Length | Format-Table -AutoSize
+          
+          # Запуск теста с подробным выводом
+          python -v tests/test_audio.py 2>&1 | Tee-Object -FilePath "audio_test.log"
+          
+          # Проверка результатов
+          if ($LASTEXITCODE -ne 0) {
+              Get-Content "audio_test.log" | ForEach-Object { Write-Host $_ }
+              Write-Host "::error::Audio test failed with exit code $LASTEXITCODE"
               exit 1
           }
-          Write-Host "Audio processing completed successfully"
+
+          # Проверка выходных файлов
+          if (-not (Test-Path "audio/audio.json")) {
+              Write-Host "::error::Audio output file not created"
+              exit 1
+          }
