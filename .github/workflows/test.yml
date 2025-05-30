@@ -31,23 +31,39 @@ jobs:
 
       - name: Install vgmstream
         run: |
-          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
-          Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
-          Remove-Item -Path "vgmstream.zip"
-          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          # Устанавливаем в C:\vgmstream для единообразия
+          $vgmDir = "C:\vgmstream"
+          New-Item -ItemType Directory -Path $vgmDir -Force
+          
+          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "$vgmDir\vgmstream.zip"
+          Expand-Archive -Path "$vgmDir\vgmstream.zip" -DestinationPath $vgmDir -Force
+          Remove-Item -Path "$vgmDir\vgmstream.zip" -Force
+          
+          # Добавляем в PATH
+          echo "$vgmDir" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          $env:PATH = "$vgmDir;$env:PATH"
 
       - name: Verify tools
         run: |
           Write-Host "=== Tool versions ==="
           ffmpeg -version
-          & "C:\vgmstream\vgmstream-cli.exe" -V
+          
+          # Проверяем vgmstream по полному пути
+          $vgmPath = "C:\vgmstream\vgmstream-cli.exe"
+          if (Test-Path $vgmPath) {
+              & $vgmPath -V
+          } else {
+              Write-Host "::error::vgmstream-cli.exe not found at $vgmPath"
+              Get-ChildItem "C:\vgmstream" -Recurse | Format-Table FullName
+              exit 1
+          }
           
           Write-Host "=== PATH contents ==="
           $env:PATH -split ';' | Where-Object { $_ -ne '' } | ForEach-Object { Write-Host $_ }
 
       - name: Run audio tests
         run: |
-          # Явно указываем путь к vgmstream-cli в коде
+          # Явно указываем путь к vgmstream-cli
           $env:VGMSTREAM_PATH = "C:\vgmstream\vgmstream-cli.exe"
           cd unpack
           python tests/test_audio.py
