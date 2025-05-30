@@ -7,14 +7,20 @@ on:
 jobs:
   run-audio:
     runs-on: self-hosted
+    environment: production
 
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python
-        uses: actions/setup-python@v4
         with:
-          python-version: '3.12'
+          submodules: 'recursive'
+
+      - name: Configure system encoding
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          chcp 65001 | Out-Null
+          git config --global core.quotepath false
+          $env:PYTHONUTF8 = "1"
+          $env:LC_ALL = "C.UTF-8"
 
       - name: Install Windows Dependencies
         run: |
@@ -27,6 +33,12 @@ jobs:
           git lfs version
           node --version
 
+      - name: Setup Git LFS
+        run: |
+          git lfs install
+          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
+          git add .gitattributes
+
       - name: Install vgmstream
         run: |
           Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
@@ -34,14 +46,40 @@ jobs:
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      - name: Setup PNPM
+      - name: Setup Python Environment
         run: |
-          npm install -g pnpm
-          pnpm -v
+          python -m pip install --upgrade pip
+          pip install pdm
+          cd unpack
+          pdm config venv.in_project true
+          pdm install
+          .\.venv\Scripts\activate
+          pip install pyjson5
+          pip install -r downloader/requirements.txt
+
+#      - name: Restore Cached Resources
+#        id: restore-gf-downloader-resources
+#        uses: actions/cache/restore@v4
+#        with:
+#          path: |
+#            unpack/downloader/output
+#          key: gf-downloader-resources-${{ runner.os }}
+#
+#      - name: Download Resources (if cache missed)
+#        if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
+#        env:
+#          GD_DATA: ${{ secrets.GD_DATA }}
+#
+#        run: |
+#          cd unpack/downloader
+#          if (!(Test-Path "config.json5")) {
+#            Write-Error "Файл config.json5 не найден!"
+#            exit 1
+#          }
+#          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
       - name: Verify tools
         run: |
-          # Проверка установленных инструментов
           ffmpeg -version
           vgmstream-cli -V
           Write-Host "Current PATH: $env:PATH"
@@ -53,7 +91,22 @@ jobs:
               exit 1
           }
 
-      - name: Run audio.py
+      - name: Clean previous audio output
         run: |
-          cd unpack/tests
-          python test_audio.py
+          if (Test-Path "unpack/audio") {
+              Remove-Item -Path "unpack/audio" -Recurse -Force
+          }
+
+      - name: Run audio tests
+        run: |
+          cd unpack
+          .\.venv\Scripts\activate
+          python tests/test_audio.py
+
+      - name: Verify audio output
+        run: |
+          if (-not (Test-Path "unpack/audio/audio.json")) {
+              Write-Host "::error::Audio processing failed - no output file"
+              exit 1
+          }
+          Write-Host "Audio processing completed successfully"
