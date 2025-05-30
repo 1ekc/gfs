@@ -1,7 +1,7 @@
 name: Debug Runner Environment
 on:
   workflow_dispatch:
-  push:
+#  push:
 jobs:
   debug:
     runs-on: self-hosted

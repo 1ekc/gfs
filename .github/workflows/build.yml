@@ -2,37 +2,28 @@ name: Windows Self-Hosted Build
 
 on:
   workflow_dispatch:
-#  push:
+  push:
 
 jobs:
   build:
     runs-on: self-hosted
     environment: production
+
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      # Шаг для отладки дискового пространства
-      - name: Check Disk Space (Windows)
+      # Проверка дискового пространства
+      - name: Check Disk Space
         run: |
           Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
 
-      # Установка системных зависимостей через Chocolatey
-      - name: Install Windows Dependencies
+      # Установка системных зависимостей
+      - name: Install System Tools
         run: |
-          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          choco install -y ffmpeg pngquant imagemagick git-lfs nodejs python --version=3.10.0
           refreshenv
-          ffmpeg -version
-          pngquant --version
-          magick --version
-          git lfs version
-          node --version
-
-      # Настройка Git LFS
-      - name: Setup Git LFS
-        run: |
           git lfs install
           git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
           git add .gitattributes
@@ -51,57 +42,61 @@ jobs:
           npm install -g pnpm
           pnpm -v
 
-      # Кэширование ресурсов с уникальным ключом
-      - name: Restore Cached Resources
-        id: restore-gf-downloader-resources
+      # Кэширование ресурсов
+      - name: Restore Resources Cache
+        id: restore-cache
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/downloader/output
-          key: gf-downloader-resources-${{ runner.os }}-${{ github.sha }}
+          key: gf-resources-${{ runner.os }}-${{ github.sha }}
 
-      - name: Create and activate venv
+      # Настройка Python окружения
+      - name: Setup Python Environment
         run: |
-          python -m venv venv
-          .\venv\Scripts\activate
           python -m pip install --upgrade pip
-          pip install chardet==5.2.0 UnityPy pyjson5
+          python -m venv .venv
+          .\.venv\Scripts\activate
+          pip install --force-reinstall chardet==5.2.0 UnityPy pyjson5
           pip install -r unpack/downloader/requirements.txt
-          python -c "import sys; print('\n'.join(sys.path))"
+          
+          # Проверка установки
           python -c "import chardet; print(f'chardet path: {chardet.__file__}')"
+          python -m pip list
 
-      # Загрузка ресурсов (если кэш не найден)
-      - name: Download Resources (if cache missed)
-        if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
+      # Загрузка ресурсов (если нет в кэше)
+      - name: Download Resources
+        if: steps.restore-cache.outputs.cache-hit != 'true'
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
           cd unpack/downloader
           if (!(Test-Path "config.json5")) {
-            Write-Error "Файл config.json5 не найден!"
+            Write-Error "config.json5 not found!"
             exit 1
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
-      # Сохранение в кэш с continue-on-error
-      - name: Cache Downloaded Resources
+      # Сохранение в кэш
+      - name: Save Resources Cache
         uses: actions/cache/save@v4
         continue-on-error: true
         with:
           path: |
             unpack/downloader/output
-          key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
+          key: ${{ steps.restore-cache.outputs.cache-primary-key }}
 
-      # Распаковка ресурсов с явной активацией venv
+      # Распаковка ресурсов
       - name: Unpack Resources
         run: |
           .\.venv\Scripts\activate
           cd unpack
           python -m gfunpack downloader/output -o .
-          # Проверка создания JSON-файлов
-          ls audio/audio.json
-          ls images/backgrounds.json
-          ls images/characters.json
+          
+          # Проверка файлов
+          if (!(Test-Path "audio/audio.json")) { throw "audio.json not created!" }
+          if (!(Test-Path "images/backgrounds.json")) { throw "backgrounds.json not created!" }
+          if (!(Test-Path "images/characters.json")) { throw "characters.json not created!" }
 
       # Перенос ресурсов
       - name: Move Resources
@@ -124,8 +119,8 @@ jobs:
           pnpm build-index
           pnpm build
 
-      # Деплой на Cloudflare Pages
-      - name: Publish to Cloudflare Pages
+      # Деплой
+      - name: Deploy to Cloudflare
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
