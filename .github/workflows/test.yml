@@ -16,35 +16,28 @@ jobs:
         with:
           python-version: '3.12'
 
-      - name: Install dependencies
+      - name: Install Windows Dependencies
         run: |
-          # Установка Python-зависимостей
-          pip install UnityPy chardet tqdm
-          cd unpack
-          pip install -e .
+          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          refreshenv
+          ffmpeg -version
+          pngquant --version
+          magick --version
+          git lfs version
+          node --version
 
-          # Проверка и установка ffmpeg (если еще не установлен)
-          if (-not (Get-Command ffmpeg -ErrorAction SilentlyContinue)) {
-              choco install ffmpeg -y
-          }
+      - name: Install vgmstream
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
+          Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
+          Remove-Item -Path "vgmstream.zip"
+          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-          # Установка vgmstream из альтернативного источника
-          $vgmstreamUrl = "https://github.com/vgmstream/vgmstream-releases/releases/download/r1882/vgmstream-win64.zip"
-          $tempDir = "C:\vgmstream"
-          New-Item -ItemType Directory -Path $tempDir -Force
-          
-          try {
-              # Пробуем скачать через прямой URL
-              Invoke-WebRequest -Uri $vgmstreamUrl -OutFile "$tempDir\vgmstream.zip"
-          } catch {
-              # Если не получилось, используем альтернативный источник
-              $vgmstreamUrl = "https://www.files.vgmstream.org/win64/vgmstream-win64.zip"
-              Invoke-WebRequest -Uri $vgmstreamUrl -OutFile "$tempDir\vgmstream.zip"
-          }
-          
-          Expand-Archive -Path "$tempDir\vgmstream.zip" -DestinationPath $tempDir
-          $env:PATH += ";$tempDir"
-          echo "$tempDir" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+      - name: Setup PNPM
+        run: |
+          npm install -g pnpm
+          pnpm -v
 
       - name: Verify tools
         run: |
