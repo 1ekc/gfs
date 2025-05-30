@@ -63,7 +63,12 @@ jobs:
           pdm install
           .\.venv\Scripts\activate
           pip install pyjson5
+          pip install chardet UnityPy
           pip install -r downloader/requirements.txt
+      - name: Debug info
+        run: |
+          python -c "import chardet; print(f'chardet version: {chardet.__version__}')"
+          python -m pip list
       - name: Download Resources (if cache missed)
         if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
