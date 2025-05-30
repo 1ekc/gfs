@@ -60,19 +60,14 @@ jobs:
             unpack/downloader/output
           key: gf-downloader-resources-${{ runner.os }}-${{ github.sha }}
 
-      # Настройка Python с явной активацией venv
-      - name: Setup Python Environment
+      - name: Create and activate venv
         run: |
+          python -m venv venv
+          .\venv\Scripts\activate
           python -m pip install --upgrade pip
-          pip install pdm
-          cd unpack
-          pdm config venv.in_project true
-          pdm install
-          # Явная активация venv и установка зависимостей
-          .\.venv\Scripts\activate
-          pip install --force-reinstall chardet==5.2.0 UnityPy pyjson5
-          pip install -r downloader/requirements.txt
-          # Проверка установки chardet
+          pip install chardet==5.2.0 UnityPy pyjson5
+          pip install -r unpack/downloader/requirements.txt
+          python -c "import sys; print('\n'.join(sys.path))"
           python -c "import chardet; print(f'chardet path: {chardet.__file__}')"
 
       # Загрузка ресурсов (если кэш не найден)
@@ -100,8 +95,8 @@ jobs:
       # Распаковка ресурсов с явной активацией venv
       - name: Unpack Resources
         run: |
-          cd unpack
           .\.venv\Scripts\activate
+          cd unpack
           python -m gfunpack downloader/output -o .
           # Проверка создания JSON-файлов
           ls audio/audio.json
