@@ -1,0 +1,19 @@
+name: Debug Runner Environment
+on:
+  workflow_dispatch:
+  push:
+jobs:
+  debug:
+    runs-on: self-hosted
+    steps:
+      - name: Check system
+        run: |
+          echo "### Python ###"
+          where python
+          python --version
+          
+          echo "### Pip packages ###"
+          pip list
+          
+          echo "### Environment ###"
+          Get-ChildItem Env: | Out-String
