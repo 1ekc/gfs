@@ -13,47 +13,54 @@ jobs:
         with:
           submodules: 'recursive'
 
+      # Шаг для отладки дискового пространства
       - name: Check Disk Space (Windows)
         run: |
           Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+
+      # Установка системных зависимостей через Chocolatey
       - name: Install Windows Dependencies
         run: |
-          # Проверяем и устанавливаем только отсутствующие пакеты
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
-          
-          # Обновляем переменные среды для PowerShell
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
           refreshenv
-          
-          # Проверяем установленные версии
           ffmpeg -version
           pngquant --version
           magick --version
           git lfs version
           node --version
+
+      # Настройка Git LFS
       - name: Setup Git LFS
         run: |
           git lfs install
           git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
           git add .gitattributes
+
+      # Установка vgmstream
       - name: Install vgmstream
         run: |
           Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
           Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+      # Установка PNPM
       - name: Setup PNPM
         run: |
           npm install -g pnpm
           pnpm -v
+
+      # Кэширование ресурсов с уникальным ключом
       - name: Restore Cached Resources
         id: restore-gf-downloader-resources
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/downloader/output
-          key: gf-downloader-resources-${{ runner.os }}
+          key: gf-downloader-resources-${{ runner.os }}-${{ github.sha }}
 
+      # Настройка Python с явной активацией venv
       - name: Setup Python Environment
         run: |
           python -m pip install --upgrade pip
@@ -61,14 +68,14 @@ jobs:
           cd unpack
           pdm config venv.in_project true
           pdm install
+          # Явная активация venv и установка зависимостей
           .\.venv\Scripts\activate
-          pip install pyjson5
-          pip install chardet UnityPy
+          pip install --force-reinstall chardet==5.2.0 UnityPy pyjson5
           pip install -r downloader/requirements.txt
-      - name: Debug info
-        run: |
-          python -c "import chardet; print(f'chardet version: {chardet.__version__}')"
-          python -m pip list
+          # Проверка установки chardet
+          python -c "import chardet; print(f'chardet path: {chardet.__file__}')"
+
+      # Загрузка ресурсов (если кэш не найден)
       - name: Download Resources (if cache missed)
         if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
@@ -80,18 +87,28 @@ jobs:
             exit 1
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
+
+      # Сохранение в кэш с continue-on-error
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
+        continue-on-error: true
         with:
           path: |
             unpack/downloader/output
           key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
 
+      # Распаковка ресурсов с явной активацией venv
       - name: Unpack Resources
         run: |
           cd unpack
           .\.venv\Scripts\activate
           python -m gfunpack downloader/output -o .
+          # Проверка создания JSON-файлов
+          ls audio/audio.json
+          ls images/backgrounds.json
+          ls images/characters.json
+
+      # Перенос ресурсов
       - name: Move Resources
         run: |
           cd unpack
@@ -101,13 +118,18 @@ jobs:
           mv audio ../public
           mv images ../public
           mv stories ../public
+
+      # Сборка проекта
       - name: Install Project Dependencies
         run: |
           pnpm install --frozen-lockfile
+
       - name: Build Project
         run: |
           pnpm build-index
           pnpm build
+
+      # Деплой на Cloudflare Pages
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
