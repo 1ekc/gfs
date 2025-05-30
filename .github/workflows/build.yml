@@ -2,8 +2,7 @@ name: Windows Self-Hosted Build
 
 on:
   workflow_dispatch:
-#  push:
-
+  push:
 jobs:
   build:
     runs-on: self-hosted
@@ -13,6 +12,7 @@ jobs:
         with:
           submodules: 'recursive'
 
+      # System configuration
       - name: Configure system encoding
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -21,10 +21,12 @@ jobs:
           $env:PYTHONUTF8 = "1"
           $env:LC_ALL = "C.UTF-8"
 
+      # Dependency checks
       - name: Check Disk Space (Windows)
         run: |
           Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
 
+      # Package installation
       - name: Install Windows Dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
@@ -36,12 +38,14 @@ jobs:
           git lfs version
           node --version
 
+      # Setup Git LFS
       - name: Setup Git LFS
         run: |
           git lfs install
           git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
           git add .gitattributes
 
+      # Audio tools setup
       - name: Install vgmstream
         run: |
           Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
@@ -49,11 +53,13 @@ jobs:
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
+      # Build system setup
       - name: Setup PNPM
         run: |
           npm install -g pnpm
           pnpm -v
 
+      # Resource handling
       - name: Restore Cached Resources
         id: restore-gf-downloader-resources
         uses: actions/cache/restore@v4
@@ -62,6 +68,7 @@ jobs:
             unpack/downloader/output
           key: gf-downloader-resources-${{ runner.os }}
 
+      # Python environment
       - name: Setup Python Environment
         run: |
           python -m pip install --upgrade pip
@@ -73,6 +80,7 @@ jobs:
           pip install pyjson5
           pip install -r downloader/requirements.txt
 
+      # Resource download fallback
       - name: Download Resources (if cache missed)
         if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
@@ -80,11 +88,12 @@ jobs:
         run: |
           cd unpack/downloader
           if (!(Test-Path "config.json5")) {
-            Write-Error "Файл config.json5 не найден!"
-            exit 1
+              Write-Error "config.json5 file not found!"
+              exit 1
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
+      # Cache management
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
         with:
@@ -92,7 +101,7 @@ jobs:
             unpack/downloader/output
           key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
 
-      # ===== ДОБАВЛЕННЫЕ ШАГИ ИЗ old_build.yml =====
+      # Image processing
       - name: Restore Cached Images
         id: restore-image-resources
         uses: actions/cache/restore@v4
@@ -101,7 +110,7 @@ jobs:
             unpack/images
           key: gf-image-resources-${{ runner.os }}
 
-      - name: Unpack images
+      - name: Process images
         run: |
           cd unpack
           .\.venv\Scripts\activate
@@ -115,6 +124,7 @@ jobs:
             unpack/images
           key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
 
+      # Audio processing
       - name: Restore Cached Audio
         id: restore-audio-resources
         uses: actions/cache/restore@v4
@@ -123,11 +133,36 @@ jobs:
             unpack/audio
           key: gf-audio-resources-${{ runner.os }}
 
-      - name: Unpack audio
+      - name: Validate Audio Resources
+        run: |
+          $requiredAudioFiles = @(
+              "unpack/downloader/output/asset_textes.ab",
+              "unpack/downloader/output/AVG.acb.dat"
+          )
+          foreach ($file in $requiredAudioFiles) {
+              if (-not (Test-Path $file)) {
+                  Write-Host "::error file=$file::Required audio file missing"
+                  exit 1
+              }
+          }
+
+      - name: Process audio
         run: |
           cd unpack
           .\.venv\Scripts\activate
           python tests/test_audio.py
+
+      - name: Verify Audio Output
+        run: |
+          if (-not (Test-Path "unpack/audio/audio.json")) {
+              Write-Host "::error::Audio processing failed - no output JSON"
+              exit 1
+          }
+          $audioJson = Get-Content "unpack/audio/audio.json" | ConvertFrom-Json
+          if ($audioJson.Count -eq 0) {
+              Write-Host "::error::Audio JSON is empty"
+              exit 1
+          }
 
       - name: Cache Audio
         uses: actions/cache/save@v4
@@ -136,22 +171,18 @@ jobs:
             unpack/audio
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
 
-      # ===== КОНЕЦ ДОБАВЛЕННЫХ ШАГОВ =====
-
+      # Main unpacking process
       - name: Unpack resources
         run: |
-          # Устанавливаем UTF-8 для этого шага
           $ErrorActionPreference = "Stop"
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           
           cd unpack
           .\.venv\Scripts\activate
 
-          # Детальное логирование структуры перед распаковкой
           Write-Host "=== File structure before unpacking ==="
           Get-ChildItem -Recurse | Format-Table FullName -AutoSize
 
-          # Распаковка с подробным выводом
           try {
               python -m gfunpack downloader/output -o . 2>&1 | Tee-Object -FilePath "unpack.log"
               if ($LASTEXITCODE -ne 0) {
@@ -163,7 +194,7 @@ jobs:
               exit 1
           }
 
-          # Проверка созданных файлов
+          # Output validation
           $requiredFiles = @(
               "audio/audio.json",
               "images/backgrounds.json",
@@ -180,17 +211,17 @@ jobs:
               }
           }
 
-      # Шаг перемещения ресурсов с правильным синтаксисом
-      - name: Move resources
+      # Resource deployment
+      - name: Deploy resources
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           cd unpack
 
-          # Создаем директории
+          # Create directories
           New-Item -ItemType Directory -Path "../src/assets" -Force | Out-Null
           New-Item -ItemType Directory -Path "../public" -Force | Out-Null
 
-          # Функция для безопасного копирования
+          # Safe copy function
           function Safe-Copy-File {
               param($source, $dest)
               if (Test-Path $source) {
@@ -202,7 +233,7 @@ jobs:
               return $false
           }
 
-          # Копируем JSON файлы
+          # Copy JSON files
           $copiedFiles = @(
               @{source="audio/audio.json"; dest="../src/assets"},
               @{source="images/backgrounds.json"; dest="../src/assets"},
@@ -223,7 +254,7 @@ jobs:
               exit 1
           }
 
-          # Перемещаем папки
+          # Move folders
           $folders = @("audio", "images", "stories")
           foreach ($folder in $folders) {
               if (Test-Path $folder) {
@@ -234,9 +265,9 @@ jobs:
               }
           }
 
+      # Build process
       - name: Build site
         run: |
-          # Проверяем наличие необходимых файлов
           $requiredAssets = @(
               "src/assets/audio.json",
               "src/assets/backgrounds.json"
@@ -249,11 +280,11 @@ jobs:
               }
           }
 
-          # Сборка
           pnpm install --frozen-lockfile
           pnpm build-index
           pnpm build
 
+      # Deployment
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
