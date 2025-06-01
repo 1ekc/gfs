@@ -9,19 +9,11 @@ permissions:
 
 jobs:
   documentation:
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-      - name: Log Disk Space
-        run: df -h
-      - name: Free Disk Space
-        uses: jlumbroso/free-disk-space@main
-        with:
-          tool-cache: false
-          large-packages: false
-          swap-storage: false
       - name: Install Dependencies
         run: |
           sudo apt install ffmpeg pngquant imagemagick libfuse2
