@@ -94,9 +94,10 @@ jobs:
       - name: Verify Environment
         run: |
           .\.venv\Scripts\activate
-          echo "Python executable: $(which python)"
+          # Для Windows используем where вместо which
+          echo "Python executable: $(where python)"
           echo "Python version: $(python --version)"
-          echo "PYTHONPATH: $PYTHONPATH"
+          echo "PYTHONPATH: $env:PYTHONPATH"
           python -m pip list
           python -c "import sys; print('\n'.join(sys.path))"
 
