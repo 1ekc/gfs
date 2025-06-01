@@ -60,26 +60,14 @@ jobs:
       # Настройка Python окружения
       - name: Setup Python Environment
         run: |
-          # Принудительно создаем новое виртуальное окружение
-          python -m venv .venv --clear
+          python -m pip install --upgrade pip
+          pip install pdm
+          cd unpack
+          pdm config venv.in_project true
+          pdm install
           .\.venv\Scripts\activate
-          
-          # Устанавливаем pip и setuptools последних версий
-          python -m pip install --upgrade pip setuptools wheel
-          
-          # Устанавливаем зависимости в правильном порядке
-          pip install --no-cache-dir --force-reinstall pyjson5==1.0.3
-          pip install --no-cache-dir --force-reinstall chardet==5.2.0 UnityPy requests
-          
-          # Проверяем установку
-          python -c "import pyjson5; print(f'pyjson5 installed at: {pyjson5.__file__}')"
-          
-          # Устанавливаем остальные зависимости
-          pip install -r unpack/downloader/requirements.txt
-          
-          # Настраиваем PYTHONPATH
-          echo "PYTHONPATH=${{ github.workspace }}/unpack" >> $env:GITHUB_ENV
-            #Проверка путей
+          pip install pyjson5
+          pip install -r downloader/requirements.txt
 #      - name: Verify Imports
 #        run: |
 #          .\.venv\Scripts\activate
