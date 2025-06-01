@@ -60,25 +60,37 @@ jobs:
       # Настройка Python окружения
       - name: Setup Python Environment
         run: |
-          python -m pip install --upgrade pip
-          pip install pdm
-          cd unpack
-          pdm config venv.in_project true
-          pdm install
-          .\.venv\Scripts\activate
-          pip install pyjson5
-          pip install -r downloader/requirements.txt
-#      - name: Verify Imports
-#        run: |
-#          .\.venv\Scripts\activate
-#          $ErrorActionPreference = "Stop"
-#          try {
-#            python -c "from gfunpack import utils; print('Import successful')"
-#          } catch {
-#            Write-Output "Import failed: $_"
-#            exit 1
-#          }
-      # Загрузка ресурсов (если нет в кэше)
+          # Удаляем старое окружение если есть
+          if (Test-Path .venv) { Remove-Item -Recurse -Force .venv }
+          
+          # Создаем новое виртуальное окружение
+          python -m venv .venv
+          
+          # Альтернативный способ активации для PowerShell
+          $VENV_PATH = "$pwd\.venv"
+          $ACTIVATE_PATH = "$VENV_PATH\Scripts\Activate.ps1"
+          
+          # Проверяем существование файла активации
+          if (!(Test-Path $ACTIVATE_PATH)) {
+            Write-Error "Virtual environment activation script not found at $ACTIVATE_PATH"
+            Get-ChildItem $VENV_PATH -Recurse | Select-Object FullName | Write-Output
+            exit 1
+          }
+          
+          # Активируем окружение
+          . $ACTIVATE_PATH
+          
+          # Проверяем активацию
+          Write-Output "Python path after activation: $(Get-Command python | Select-Object -ExpandProperty Source)"
+          
+          # Устанавливаем зависимости
+          pip install --upgrade pip
+          pip install pyjson5 chardet==5.2.0 UnityPy
+          pip install -r unpack/downloader/requirements.txt
+          
+          # Проверка установки
+          python -c "import pyjson5; print(f'pyjson5 version: {pyjson5.__version__}')"
+     # Загрузка ресурсов (если нет в кэше)
       - name: Verify Environment
         run: |
           .\.venv\Scripts\activate
