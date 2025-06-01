@@ -57,12 +57,18 @@ jobs:
           python -m pip install --upgrade pip
           python -m venv .venv
           .\.venv\Scripts\activate
-          pip install --force-reinstall chardet==5.2.0 UnityPy pyjson5 requests google-api-python-client google-auth-httplib2 google-auth-oauthlib oauth2client protobuf==3.20.3
+          
+          # Очистка кеша и переустановка
+          python -m pip cache purge
+          pip install --force-reinstall --no-cache-dir pyjson5
+          pip install --force-reinstall chardet==5.2.0 UnityPy requests google-api-python-client
+          
+          # Установка зависимостей
           pip install -r unpack/downloader/requirements.txt
-          # Добавляем путь к unpack в PYTHONPATH
+          
+          # Проверка
           echo "PYTHONPATH=${{ github.workspace }}/unpack" >> $env:GITHUB_ENV
-          # Проверка установки
-          python -c "import chardet, pyjson5, UnityPy; print('All required modules imported successfully')"
+          python -c "import pyjson5; print(f'pyjson5 successfully imported from {pyjson5.__file__}')"
           python -m pip list
       #Проверка путей
 #      - name: Verify Imports
