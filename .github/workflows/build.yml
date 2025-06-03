@@ -14,22 +14,24 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-      - name: Install Dependencies
+      - name: Install Windows Dependencies
         run: |
-          # Установка Chocolatey (если ещё не установлен)
-          Set-ExecutionPolicy Bypass -Scope Process -Force
-          [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072
-          Invoke-Expression ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
-          
-          # Установка пакетов
-          choco install ffmpeg imagemagick -y
-          
-          # Скачивание vgmstream для Windows
-          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win-cli.zip" -OutFile "vgmstream.zip"
-          Expand-Archive -Path vgmstream.zip -DestinationPath bin
-          
-          # Добавление в PATH
-          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append
+          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          refreshenv
+          ffmpeg -version
+          pngquant --version
+          magick --version
+          git lfs version
+          node --version
+
+      - name: Install vgmstream
+        run: |
+          Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
+          Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
+          Remove-Item -Path "vgmstream.zip"
+          echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Restore Resources Cache
         id: restore-cache
         uses: actions/cache/restore@v4
