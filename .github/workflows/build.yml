@@ -56,7 +56,7 @@ jobs:
           .\.venv\Scripts\activate
           cd unpack/downloader
           python -c "import sys; print(sys.path)"  # Debug paths
-          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-L
+          python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-L"
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
         with:
