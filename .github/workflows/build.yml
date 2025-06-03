@@ -45,7 +45,7 @@ jobs:
         run: |
           cd unpack
           pdm install
-          source .venv/bin/activate
+          .\.venv\Scripts\Activate.ps1
           pip install -r downloader/requirements.txt
       - name: Download Resources
         if: steps.restore-cache.outputs.cache-hit != 'true'
@@ -73,7 +73,7 @@ jobs:
       - name: Unpack images
         run: |
           cd unpack
-          source .venv/bin/activate
+          .\.venv\Scripts\Activate.ps1
           python tests/test_backgrounds.py
           python tests/test_characters.py
       - name: Cache Resources (images)
@@ -92,7 +92,7 @@ jobs:
       - name: Unpack audio
         run: |
           cd unpack
-          source .venv/bin/activate
+          .\.venv\Scripts\Activate.ps1
           python tests/test_audio.py
       - name: Cache Resources (audio)
         uses: actions/cache/save@v4
@@ -103,7 +103,7 @@ jobs:
       - name: Unpack resources
         run: |
           cd unpack
-          source .venv/bin/activate
+          .\.venv\Scripts\Activate.ps1
           python -m gfunpack downloader/output -o .
       - name: Log Disk Space
         run: df -h
