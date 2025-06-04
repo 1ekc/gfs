@@ -58,15 +58,32 @@ jobs:
 
       - name: Setup Python Environment
         run: |
-          python -m pip install --upgrade pip
-          pip install pdm
           cd unpack
-          pdm config venv.in_project true
-          pdm install
-          .\.venv\Scripts\activate
-          pip install pyjson5
-          pip install chardet pyjson5
+          # Удаляем существующее окружение
+          if (Test-Path .venv) {
+              Remove-Item -Recurse -Force .venv
+          }
+          
+          # Создаем новое окружение
+          python -m venv .venv
+          .\.venv\Scripts\Activate.ps1
+          
+          # Устанавливаем базовые зависимости
+          pip install --upgrade pip wheel setuptools
+          
+          # Устанавливаем PDM в окружение
+          pip install pdm
+          
+          # Инициализируем PDM и устанавливаем зависимости
+          pdm init --non-interactive
+          pdm add chardet pyjson5
+          
+          # Устанавливаем зависимости downloader
           pip install -r downloader/requirements.txt
+          
+          # Проверяем установку chardet
+          pip list | Select-String "chardet"
+          python -c "import chardet; print(f'chardet version: {chardet.__version__}')"
       - name: Download Resources (if cache missed)
         if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
@@ -128,6 +145,18 @@ jobs:
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
 
       # ===== КОНЕЦ ДОБАВЛЕННЫХ ШАГОВ =====
+      - name: Debug Python Environment
+        run: |
+          cd unpack
+          Write-Host "=== Python Environment Debug ==="
+          Write-Host "Python path: $(which python)"
+          Write-Host "Python version: $(python --version)"
+          Write-Host "Pip list:"
+          pip list
+          Write-Host "Checking chardet:"
+          python -c "try: import chardet; print('chardet OK, version:', chardet.__version__); except ImportError as e: print('ImportError:', e)"
+          Write-Host "Virtual environment location:"
+          Get-ChildItem .venv\Lib\site-packages | Where-Object { $_.Name -like 'char*' }
 
       - name: Unpack resources
         run: |
