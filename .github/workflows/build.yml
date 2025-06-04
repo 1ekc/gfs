@@ -136,28 +136,18 @@ jobs:
           cd unpack
           .\.venv\Scripts\Activate.ps1
           
-          # Создаём лог-файл в правильном месте
-          $logFile = "unpack.log"
-          
           Write-Host "=== File structure before unpacking ==="
           Get-ChildItem -Recurse | Format-Table FullName -AutoSize
           
           try {
-              # Записываем вывод сразу в файл и консоль
-              python -m gfunpack downloader/output -o . 2>&1 | Tee-Object -FilePath $logFile
+              # Просто выполняем команду без логирования в файл
+              python -m gfunpack downloader/output -o .
               if ($LASTEXITCODE -ne 0) {
                   throw "Unpack failed with exit code $LASTEXITCODE"
               }
               Write-Host "Unpack completed successfully"
           } catch {
-              # Проверяем существование лога перед чтением
-              if (Test-Path $logFile) {
-                  Write-Host "=== Unpack log ==="
-                  Get-Content $logFile | ForEach-Object { Write-Host $_ }
-              } else {
-                  Write-Host "No log file found at $($pwd.Path)\$logFile"
-              }
-              Write-Host "::error::Resource unpacking failed"
+              Write-Host "::error::Resource unpacking failed: $_"
               exit 1
           }
           
