@@ -65,6 +65,7 @@ jobs:
           pdm install
           .\.venv\Scripts\activate
           pip install pyjson5
+          pip install chardet pyjson5
           pip install -r downloader/requirements.txt
       - name: Download Resources (if cache missed)
         if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
