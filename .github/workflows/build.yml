@@ -130,26 +130,37 @@ jobs:
 
       - name: Unpack resources
         run: |
-          # Устанавливаем UTF-8 для этого шага
           $ErrorActionPreference = "Stop"
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           
           cd unpack
-          .\.venv\Scripts\activate
-          # Детальное логирование структуры перед распаковкой
+          .\.venv\Scripts\Activate.ps1
+          
+          # Создаём лог-файл в правильном месте
+          $logFile = "unpack.log"
+          
           Write-Host "=== File structure before unpacking ==="
           Get-ChildItem -Recurse | Format-Table FullName -AutoSize
-          # Распаковка с подробным выводом
+          
           try {
-              python -m gfunpack downloader/output -o . 2>&1 | Tee-Object -FilePath "unpack.log"
+              # Записываем вывод сразу в файл и консоль
+              python -m gfunpack downloader/output -o . 2>&1 | Tee-Object -FilePath $logFile
               if ($LASTEXITCODE -ne 0) {
                   throw "Unpack failed with exit code $LASTEXITCODE"
               }
+              Write-Host "Unpack completed successfully"
           } catch {
-              Get-Content "unpack.log" | ForEach-Object { Write-Host $_ }
+              # Проверяем существование лога перед чтением
+              if (Test-Path $logFile) {
+                  Write-Host "=== Unpack log ==="
+                  Get-Content $logFile | ForEach-Object { Write-Host $_ }
+              } else {
+                  Write-Host "No log file found at $($pwd.Path)\$logFile"
+              }
               Write-Host "::error::Resource unpacking failed"
               exit 1
           }
+          
           # Проверка созданных файлов
           $requiredFiles = @(
               "audio/audio.json",
@@ -229,10 +240,10 @@ jobs:
           pnpm install --frozen-lockfile
           pnpm build-index
           pnpm build
-#      - name: Publish to Cloudflare Pages
-#        uses: cloudflare/pages-action@v1
-#        with:
-#          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-#          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-#          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME  }}
-#          directory: dist
+      - name: Publish to Cloudflare Pages
+        uses: cloudflare/pages-action@v1
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME  }}
+          directory: dist
