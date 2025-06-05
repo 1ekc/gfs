@@ -20,9 +20,11 @@ jobs:
           git config --global core.quotepath false
           $env:PYTHONUTF8 = "1"
           $env:LC_ALL = "C.UTF-8"
+
       - name: Check Disk Space (Windows)
         run: |
           Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+
       - name: Install Windows Dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
@@ -33,21 +35,25 @@ jobs:
           magick --version
           git lfs version
           node --version
+
       - name: Setup Git LFS
         run: |
           git lfs install
           git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
           git add .gitattributes
+
       - name: Install vgmstream
         run: |
           Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
           Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
       - name: Setup PNPM
         run: |
           npm install -g pnpm
           pnpm -v
+
       - name: Restore Cached Resources
         id: restore-gf-downloader-resources
         uses: actions/cache/restore@v4
@@ -58,32 +64,15 @@ jobs:
 
       - name: Setup Python Environment
         run: |
-          cd unpack
-          # Удаляем существующее окружение
-          if (Test-Path .venv) {
-              Remove-Item -Recurse -Force .venv
-          }
-          
-          # Создаем новое окружение
-          python -m venv .venv
-          .\.venv\Scripts\Activate.ps1
-          
-          # Устанавливаем базовые зависимости
-          pip install --upgrade pip wheel setuptools
-          
-          # Устанавливаем PDM в окружение
+          python -m pip install --upgrade pip
           pip install pdm
-          
-          # Инициализируем PDM и устанавливаем зависимости
-          pdm init --non-interactive
-          pdm add chardet pyjson5
-          
-          # Устанавливаем зависимости downloader
+          cd unpack
+          pdm config venv.in_project true
+          pdm install
+          .\.venv\Scripts\Activate.ps1
+          pip install pyjson5 chardet  # Критически важные зависимости
           pip install -r downloader/requirements.txt
-          
-          # Проверяем установку chardet
-          pip list | Select-String "chardet"
-          python -c "import chardet; print(f'chardet version: {chardet.__version__}')"
+
       - name: Download Resources (if cache missed)
         if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
@@ -95,6 +84,7 @@ jobs:
             exit 1
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
+
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
         with:
@@ -102,7 +92,7 @@ jobs:
             unpack/downloader/output
           key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
 
-      # ===== ДОБАВЛЕННЫЕ ШАГИ ИЗ old_build.yml =====
+      # ===== КОРРЕКТИРОВКА ДЛЯ ИЗОБРАЖЕНИЙ И АУДИО =====
       - name: Restore Cached Images
         id: restore-image-resources
         uses: actions/cache/restore@v4
@@ -114,9 +104,11 @@ jobs:
       - name: Unpack images
         run: |
           cd unpack
-          .\.venv\Scripts\activate
+          .\.venv\Scripts\Activate.ps1
+          $env:PYTHONPATH = "$pwd\src"  # Ключевое исправление
           python tests/test_backgrounds.py
           python tests/test_characters.py
+
       - name: Cache Images
         uses: actions/cache/save@v4
         with:
@@ -135,8 +127,10 @@ jobs:
       - name: Unpack audio
         run: |
           cd unpack
-          .\.venv\Scripts\activate
+          .\.venv\Scripts\Activate.ps1
+          $env:PYTHONPATH = "$pwd\src"  # Ключевое исправление
           python tests/test_audio.py
+
       - name: Cache Audio
         uses: actions/cache/save@v4
         with:
@@ -144,20 +138,7 @@ jobs:
             unpack/audio
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
 
-      # ===== КОНЕЦ ДОБАВЛЕННЫХ ШАГОВ =====
-      - name: Debug Python Environment
-        run: |
-          cd unpack
-          Write-Host "=== Python Environment Debug ==="
-          Write-Host "Python path: $(which python)"
-          Write-Host "Python version: $(python --version)"
-          Write-Host "Pip list:"
-          pip list
-          Write-Host "Checking chardet:"
-          python -c "try: import chardet; print('chardet OK, version:', chardet.__version__); except ImportError as e: print('ImportError:', e)"
-          Write-Host "Virtual environment location:"
-          Get-ChildItem .venv\Lib\site-packages | Where-Object { $_.Name -like 'char*' }
-
+      # ===== КОРРЕКТИРОВКА ДЛЯ РАСПАКОВКИ РЕСУРСОВ =====
       - name: Unpack resources
         run: |
           $ErrorActionPreference = "Stop"
@@ -165,21 +146,10 @@ jobs:
           
           cd unpack
           .\.venv\Scripts\Activate.ps1
+          $env:PYTHONPATH = "$pwd\src"  # Ключевое исправление
           
-          Write-Host "=== File structure before unpacking ==="
-          Get-ChildItem -Recurse | Format-Table FullName -AutoSize
-          
-          try {
-              # Просто выполняем команду без логирования в файл
-              python -m gfunpack downloader/output -o .
-              if ($LASTEXITCODE -ne 0) {
-                  throw "Unpack failed with exit code $LASTEXITCODE"
-              }
-              Write-Host "Unpack completed successfully"
-          } catch {
-              Write-Host "::error::Resource unpacking failed: $_"
-              exit 1
-          }
+          # Распаковка с выводом в консоль
+          python -m gfunpack downloader/output -o .
           
           # Проверка созданных файлов
           $requiredFiles = @(
@@ -196,25 +166,17 @@ jobs:
                   Write-Host "Found file: $file"
               }
           }
-      # Шаг перемещения ресурсов с правильным синтаксисом
+
+      # ===== ПЕРЕМЕЩЕНИЕ РЕСУРСОВ =====
       - name: Move resources
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           cd unpack
+          
           # Создаем директории
           New-Item -ItemType Directory -Path "../src/assets" -Force | Out-Null
           New-Item -ItemType Directory -Path "../public" -Force | Out-Null
-          # Функция для безопасного копирования
-          function Safe-Copy-File {
-              param($source, $dest)
-              if (Test-Path $source) {
-                  Copy-Item $source $dest -Force
-                  Write-Host "Copied: $source -> $dest"
-                  return $true
-              }
-              Write-Host "::warning::File not found: $source"
-              return $false
-          }
+          
           # Копируем JSON файлы
           $copiedFiles = @(
               @{source="audio/audio.json"; dest="../src/assets"},
@@ -223,16 +185,15 @@ jobs:
               @{source="stories/stories.json"; dest="../src/assets"},
               @{source="stories/chapters.json"; dest="../src/assets"}
           )
-          $anyCopied = $false
           foreach ($file in $copiedFiles) {
-              if (Safe-Copy-File $file.source $file.dest) {
-                  $anyCopied = $true
+              if (Test-Path $file.source) {
+                  Copy-Item $file.source $file.dest -Force
+                  Write-Host "Copied: $($file.source) -> $($file.dest)"
+              } else {
+                  Write-Host "::warning::File not found: $($file.source)"
               }
           }
-          if (-not $anyCopied) {
-              Write-Host "::error::No JSON files were copied!"
-              exit 1
-          }
+          
           # Перемещаем папки
           $folders = @("audio", "images", "stories")
           foreach ($folder in $folders) {
@@ -243,12 +204,17 @@ jobs:
                   Write-Host "::warning::Folder not found: $folder"
               }
           }
+
+      # ===== СБОРКА САЙТА =====
       - name: Build site
         run: |
           # Проверяем наличие необходимых файлов
           $requiredAssets = @(
               "src/assets/audio.json",
-              "src/assets/backgrounds.json"
+              "src/assets/backgrounds.json",
+              "src/assets/characters.json",
+              "src/assets/stories.json",
+              "src/assets/chapters.json"
           )
           foreach ($file in $requiredAssets) {
               if (-not (Test-Path $file)) {
@@ -256,14 +222,17 @@ jobs:
                   exit 1
               }
           }
+          
           # Сборка
           pnpm install --frozen-lockfile
           pnpm build-index
           pnpm build
+
+      # ===== ПУБЛИКАЦИЯ =====
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME  }}
+          projectName: ${{ secrets.CLOUDFLARE_PROJECT_NAME }}
           directory: dist
