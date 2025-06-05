@@ -9,7 +9,7 @@ jobs:
     runs-on: self-hosted
     strategy:
       matrix:
-        python-version: [ "3.9", "3.13" ]
+        python-version: [ "3.13" ]
 
     steps:
       - uses: actions/checkout@v4
@@ -29,18 +29,28 @@ jobs:
 
       - name: Install dependencies
         run: |
+          # Получаем текущую директорию
+          $currentDir = pwd
+          
+          # Показываем содержимое текущей директории
+          Write-Host "Текущая директория:"
+          Write-Host $currentDir
+          Write-Host "Содержимое директории:"
+          Get-ChildItem
+          
           # Переходим в директорию с requirements.txt
-          cd project\unpack\downloader
-
-          # Проверяем наличие файла и устанавливаем зависимости
-          if (Test-Path "requirements.txt") {
-            pip install -r requirements.txt
+          if (Test-Path ".\unpack\downloader") {
+            cd .\unpack\downloader
+            if (Test-Path "requirements.txt") {
+              pip install -r requirements.txt
+            } else {
+              Write-Host "Файл requirements.txt не найден в директории unpack\downloader"
+              exit 1
+            }
           } else {
-            Write-Host "Файл requirements.txt не найден в project\unpack\downloader"
+            Write-Host "Директория unpack\downloader не найдена"
             exit 1
           }
-          # Возвращаемся в корневую директорию
-          cd ..\..\..
           
 
       - name: Setup Git LFS
