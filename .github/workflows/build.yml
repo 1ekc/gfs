@@ -7,31 +7,31 @@ on:
 jobs:
   build:
     runs-on: self-hosted
-    environment: production
+    strategy:
+      matrix:
+        python-version: [ "3.9", "3.103" ]
+
     steps:
       - uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
         with:
-          submodules: 'recursive'
+          python-version: ${{ matrix.python-version }}
 
-      - name: Configure system encoding
+      - name: Create virtual environment
         run: |
-          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          chcp 65001 | Out-Null
-          git config --global core.quotepath false
-          $env:PYTHONUTF8 = "1"
-          $env:LC_ALL = "C.UTF-8"
+          # Создаем виртуальное окружение
+          python -m venv .venv
+            
+          # Активируем его через PowerShell
+          .\.venv\Scripts\Activate.ps1
 
-      - name: Check Disk Space (Windows)
+      - name: Install dependencies
         run: |
-          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
-
-      - name: Install Windows Dependencies
-        run: |
-          cd unpack
-          $python = "$pwd\.venv\Scripts\python.exe"
-          & $python -m pip install --no-cache-dir chardet pyjson5
-          & $python -m pip install -r downloader/requirements.txt
-          & $python -m pip install -
+          # Устанавливаем зависимости
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
           
 
       - name: Setup Git LFS
