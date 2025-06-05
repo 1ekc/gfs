@@ -3,54 +3,38 @@ name: Windows Self-Hosted Build
 on:
   workflow_dispatch:
   push:
-
 jobs:
   build:
     runs-on: self-hosted
-    strategy:
-      matrix:
-        python-version: [ "3.13" ]
-
+    environment: production
     steps:
       - uses: actions/checkout@v4
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v5
         with:
-          python-version: ${{ matrix.python-version }}
+          submodules: 'recursive'
 
-      - name: Create virtual environment
+      # System configuration
+      - name: Configure system encoding
         run: |
-          # Создаем виртуальное окружение
-          python -m venv .venv
-            
-          # Активируем его через PowerShell
-          .\.venv\Scripts\Activate.ps1
-
-      - name: Install dependencies
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          chcp 65001 | Out-Null
+          git config --global core.quotepath false
+          $env:PYTHONUTF8 = "1"
+          $env:LC_ALL = "C.UTF-8"
+      # Dependency checks
+      - name: Check Disk Space (Windows)
         run: |
-          # Получаем текущую директорию
-          $currentDir = pwd
-          
-          # Показываем содержимое текущей директории
-          Write-Host "Текущая директория:"
-          Write-Host $currentDir
-          Write-Host "Содержимое директории:"
-          Get-ChildItem
-          
-          # Переходим в директорию с requirements.txt
-          if (Test-Path ".\unpack\downloader") {
-            cd .\unpack\downloader
-            if (Test-Path "requirements.txt") {
-              pip install -r requirements.txt
-            } else {
-              Write-Host "Файл requirements.txt не найден в директории unpack\downloader"
-              exit 1
-            }
-          } else {
-            Write-Host "Директория unpack\downloader не найдена"
-            exit 1
-          }
+          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+      # Package installation
+      - name: Install Windows Dependencies
+        run: |
+          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          refreshenv
+          ffmpeg -version
+          pngquant --version
+          magick --version
+          git lfs version
+          node --version
           
 
       - name: Setup Git LFS
