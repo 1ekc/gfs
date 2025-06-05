@@ -27,14 +27,12 @@ jobs:
 
       - name: Install Windows Dependencies
         run: |
-          choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-          refreshenv
-          ffmpeg -version
-          pngquant --version
-          magick --version
-          git lfs version
-          node --version
+          cd unpack
+          $python = "$pwd\.venv\Scripts\python.exe"
+          & $python -m pip install --no-cache-dir chardet pyjson5
+          & $python -m pip install -r downloader/requirements.txt
+          & $python -m pip install -
+          
 
       - name: Setup Git LFS
         run: |
@@ -142,14 +140,16 @@ jobs:
       - name: Unpack resources
         run: |
           $ErrorActionPreference = "Stop"
-          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          
           cd unpack
-          .\.venv\Scripts\Activate.ps1
-          $env:PYTHONPATH = "$pwd\src"  # Ключевое исправление
           
-          # Распаковка с выводом в консоль
-          python -m gfunpack downloader/output -o .
+          # Явный путь к интерпретатору
+          $python = "$pwd\.venv\Scripts\python.exe"
+          
+          # Проверка доступности chardet
+          & $python -c "import chardet; print('chardet version:', chardet.__version__)"
+          
+          # Запуск распаковки
+          & $python -m gfunpack downloader/output -o .
           
           # Проверка созданных файлов
           $requiredFiles = @(
