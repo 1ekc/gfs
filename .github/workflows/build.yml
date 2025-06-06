@@ -61,55 +61,35 @@ jobs:
       # Создание и активация виртуального окружения
       - name: Setup Python environment
         run: |
-          # Создаем окружение только при отсутствии кэша
           if ("${{ steps.cache-python.outputs.cache-hit }}" -ne 'true') {
             python -m venv .venv
           }
-          
-          # Активируем окружение и проверяем
           .\.venv\Scripts\activate
           pip install --upgrade pip wheel setuptools
           pip install chardet==5.2.0 pyjson5==1.6.1
-          
-          # Установка зависимостей для распаковки
           cd unpack
           pip install -r requirements.txt
-          
-          # Установка зависимостей для downloader
           cd downloader
           pip install -r requirements.txt
           cd ../..
-          
-          # Проверка установки
           python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
-          pip list
 
       # Исправление ошибок импорта в коде
       - name: Fix import issues in gfunpack
         run: |
-          # Исправление для utils.py
           $utilsPath = "unpack/src/gfunpack/utils.py"
           $utilsContent = Get-Content $utilsPath -Raw
-          
-          # Добавляем импорт Path
           if (-not $utilsContent.Contains("from pathlib import Path")) {
             $utilsContent = "from pathlib import Path`n`n" + $utilsContent
           }
-          
-          # Заменяем data.name и data.asset_name на data.assets_file
           $utilsContent = $utilsContent -replace 'data\.(name|asset_name)', 'data.assets_file'
           Set-Content -Path $utilsPath -Value $utilsContent -Encoding UTF8
           
-          # Исправление для prefabs.py
           $prefabsPath = "unpack/src/gfunpack/prefabs.py"
           $prefabsContent = Get-Content $prefabsPath -Raw
-          
-          # Добавляем импорт List и Dict
           if (-not $prefabsContent.Contains("from typing import List, Dict")) {
             $prefabsContent = "from typing import List, Dict`n" + $prefabsContent
           }
-          
-          # Добавляем импорт GameObject
           if (-not $prefabsContent.Contains("from .models import GameObject")) {
             $prefabsContent = "from .models import GameObject`n" + $prefabsContent
           }
@@ -122,75 +102,114 @@ jobs:
         run: |
           .\.venv\Scripts\activate
           cd unpack/downloader
-          
           if (!(Test-Path "config.json5")) {
             Write-Error "Файл config.json5 не найден!"
             exit 1
           }
-          
-          # Загрузка основной папки
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
-          
-          # Проверяем наличие текстовых файлов
-          $txtFiles = Get-ChildItem -Path "output" -Filter "*.txt" -Recurse
-          if (-not $txtFiles) {
-              Write-Host "Текстовые файлы не найдены, загружаем gf-data-rus..."
-              python downloader.py --folder-id "ID_GF_DATA_RUS" --output "gf-data-rus"
-              
-              # Копируем файлы из gf-data-rus в output
-              Get-ChildItem -Path "gf-data-rus" -Recurse | ForEach-Object {
-                  $dest = $_.FullName.Replace("gf-data-rus", "output")
-                  $destDir = Split-Path -Path $dest -Parent
-                  if (-not (Test-Path $destDir)) {
-                      New-Item -ItemType Directory -Path $destDir -Force
-                  }
-                  Copy-Item -Path $_.FullName -Destination $dest -Force
+
+      # Проверка и использование gf-data-rus при необходимости
+      - name: Check and use gf-data-rus if needed
+        run: |
+          .\.venv\Scripts\activate
+          cd unpack
+
+          # Функция для проверки существования файла в .ab архиве
+          function Test-AssetFile {
+            param($assetPath, $assetName)
+            $testScript = @"
+          from gfunpack.utils import AssetManager
+          from pathlib import Path
+          try:
+              manager = AssetManager(Path('$assetPath'))
+              manager.load_assets()
+              for data in manager.assets.values():
+                  if hasattr(data, 'assets_file') and data.assets_file == '$assetName':
+                      print('FOUND')
+                      exit(0)
+              print('NOT_FOUND')
+          except Exception as e:
+              print(f'ERROR: {e}')
+              exit(1)
+          "@
+            $testScript | Out-File -FilePath "test_asset.py" -Encoding UTF8
+            $result = python test_asset.py
+            return $result -eq 'FOUND'
+          }
+
+          # Проверяем основные файлы
+          $requiredFiles = @(
+              "downloader/output/asset_textes.ab",
+              "downloader/output/asset_avg.ab",
+              "downloader/output/asset_stories.ab"
+          )
+
+          $useFallback = $false
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  Write-Host "Файл $file не найден, будет использована папка gf-data-rus"
+                  $useFallback = $true
+                  break
               }
           }
 
-      # Обработка изображений и аудио с альтернативными путями
+          # Если основные файлы есть, проверяем наличие конкретных ассетов
+          if (-not $useFallback) {
+              $requiredAssets = @(
+                  "assets/resources/textdata/audiotemplate.txt",
+                  "assets/resources/dabao/avgtxt/profiles.txt"
+              )
+              
+              foreach ($asset in $requiredAssets) {
+                  if (-not (Test-AssetFile "downloader/output/asset_textes.ab" $asset)) {
+                      Write-Host "Ассет $asset не найден, будет использована папка gf-data-rus"
+                      $useFallback = $true
+                      break
+                  }
+              }
+          }
+
+          # Если нужно использовать fallback
+          if ($useFallback) {
+              if (Test-Path "gf-data-rus") {
+                  Write-Host "Копирование файлов из gf-data-rus..."
+                  Get-ChildItem -Path "gf-data-rus" -Recurse | ForEach-Object {
+                      $relativePath = $_.FullName.Substring((Resolve-Path "gf-data-rus").Path.Length + 1)
+                      $dest = Join-Path "downloader/output" $relativePath
+                      $destDir = Split-Path -Path $dest -Parent
+                      if (-not (Test-Path $destDir)) {
+                          New-Item -ItemType Directory -Path $destDir -Force
+                      }
+                      Copy-Item -Path $_.FullName -Destination $dest -Force
+                  }
+              } else {
+                  Write-Host "::error::Папка gf-data-rus не найдена!"
+                  exit 1
+              }
+          }
+
+      # Обработка ресурсов
       - name: Process assets
         run: |
           .\.venv\Scripts\activate
           cd unpack
-          
-          # Проверка chardet перед выполнением
-          python -c "import chardet; print('chardet version:', chardet.__version__)"
-          
-          # Обработка изображений
           $env:PYTHONPATH = "$pwd\src"
+          
+          # Проверяем наличие файлов перед обработкой
+          $requiredFiles = @(
+              "downloader/output/asset_textes.ab",
+              "downloader/output/asset_avg.ab"
+          )
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  Write-Host "::error file=$file::Required file missing"
+                  exit 1
+              }
+          }
+          
           python tests/test_backgrounds.py
           python tests/test_characters.py
-          
-          # Обработка аудио с проверкой альтернативных путей
-          $audioScript = @"
-          import os
-          import sys
-          from pathlib import Path
-          from gfunpack import audio
-          
-          def test_audio_with_fallback():
-              main_dir = 'downloader/output'
-              fallback_dir = 'downloader/gf-data-rus'
-              output_dir = 'audio'
-              
-              # Проверяем основной путь
-              if Path(main_dir).joinpath('asset_textes.ab').exists():
-                  bgm = audio.BGM(main_dir, output_dir)
-                  bgm.extract_and_convert()
-              elif Path(fallback_dir).joinpath('asset_textes.ab').exists():
-                  print("Using fallback audio directory")
-                  bgm = audio.BGM(fallback_dir, output_dir)
-                  bgm.extract_and_convert()
-              else:
-                  raise FileNotFoundError("No audio asset files found")
-          
-          if __name__ == '__main__':
-              test_audio_with_fallback()
-          "@
-                    
-          $audioScript | Out-File -FilePath "test_audio_fallback.py" -Encoding UTF8
-          python test_audio_fallback.py
+          python tests/test_audio.py
 
       # Распаковка ресурсов
       - name: Unpack resources
@@ -198,17 +217,7 @@ jobs:
           $ErrorActionPreference = "Stop"
           .\.venv\Scripts\activate
           cd unpack
-          
-          # Проверка chardet
-          python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
-          
-          # Запуск распаковки
           python -m gfunpack downloader/output -o .
-          
-          # Если в output нет файлов, пробуем gf-data-rus
-          if (-not (Test-Path "audio/audio.json")) {
-              python -m gfunpack downloader/gf-data-rus -o .
-          }
           
           # Проверка созданных файлов
           $requiredFiles = @(
@@ -221,8 +230,6 @@ jobs:
           foreach ($file in $requiredFiles) {
               if (-not (Test-Path $file)) {
                   Write-Host "::warning file=$file::File $file not found"
-              } else {
-                  Write-Host "Found file: $file"
               }
           }
 
@@ -232,11 +239,9 @@ jobs:
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           cd unpack
           
-          # Создание директорий
           New-Item -ItemType Directory -Path "../src/assets" -Force | Out-Null
           New-Item -ItemType Directory -Path "../public" -Force | Out-Null
           
-          # Копирование JSON файлов
           $jsonFiles = @(
               "audio/audio.json",
               "images/backgrounds.json",
@@ -247,27 +252,19 @@ jobs:
           foreach ($file in $jsonFiles) {
               if (Test-Path $file) {
                   Copy-Item $file "../src/assets" -Force
-                  Write-Host "Copied: $file"
-              } else {
-                  Write-Host "::warning::File not found: $file"
               }
           }
           
-          # Перемещение папок
           $folders = @("audio", "images", "stories")
           foreach ($folder in $folders) {
               if (Test-Path $folder) {
                   Move-Item $folder "../public" -Force
-                  Write-Host "Moved folder: $folder"
-              } else {
-                  Write-Host "::warning::Folder not found: $folder"
               }
           }
 
       # Сборка сайта
       - name: Build site
         run: |
-          # Проверка файлов
           $requiredAssets = @(
               "src/assets/audio.json",
               "src/assets/backgrounds.json",
@@ -282,7 +279,6 @@ jobs:
               }
           }
           
-          # Сборка
           pnpm install --frozen-lockfile
           pnpm build-index
           pnpm build
