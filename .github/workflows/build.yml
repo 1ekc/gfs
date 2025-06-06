@@ -250,14 +250,14 @@ jobs:
               "stories/chapters.json"
           )
           foreach ($file in $jsonFiles) {
-              if (Test-Path $file) {
+              if (Test-Path $file)) {
                   Copy-Item $file "../src/assets" -Force
               }
           }
           
           $folders = @("audio", "images", "stories")
           foreach ($folder in $folders) {
-              if (Test-Path $folder) {
+              if (Test-Path $folder)) {
                   Move-Item $folder "../public" -Force
               }
           }
