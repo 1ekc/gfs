@@ -14,8 +14,8 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # Настройка окружения UTF-8
-      - name: Configure UTF-8 environment
+      # Начальная настройка
+      - name: Initialize environment
         run: |
           [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           [System.Console]::InputEncoding = [System.Text.Encoding]::UTF8
@@ -23,16 +23,8 @@ jobs:
           echo "PYTHONIOENCODING=UTF-8" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "PYTHONUTF8=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      # Кэширование виртуального окружения
-      - name: Cache venv
-        uses: actions/cache@v3
-        id: cache-venv
-        with:
-          path: .venv
-          key: venv-${{ runner.os }}-py3.10-${{ hashFiles('requirements.txt') }}-${{ hashFiles('.github/workflows/*.yml') }}
-
       # Установка системных зависимостей
-      - name: Install Windows Dependencies
+      - name: Install Windows dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
@@ -57,107 +49,107 @@ jobs:
           npm install -g pnpm
           pnpm -v
 
-      # Восстановление кэша ресурсов
-      - name: Restore Cached Resources
-        id: restore-gf-downloader-resources
-        uses: actions/cache/restore@v4
+      # Кэширование Python окружения
+      - name: Cache Python environment
+        uses: actions/cache@v3
+        id: cache-python
         with:
-          path: unpack/downloader/output
-          key: gf-downloader-resources-${{ runner.os }}-${{ github.sha }}
+          path: |
+            .venv
+            unpack/.venv
+          key: python-env-${{ runner.os }}-${{ hashFiles('unpack/requirements.txt') }}
 
-      # Настройка Python окружения
-      - name: Setup Python Environment
+      # Создание и активация виртуального окружения
+      - name: Setup Python environment
         run: |
+          # Создаем виртуальное окружение в корне проекта
           python -m venv .venv
           .\.venv\Scripts\activate
-          python -m pip install --upgrade pip wheel setuptools
-          pip install pdm
+          
+          # Установка базовых зависимостей
+          pip install --upgrade pip wheel setuptools
+          pip install chardet==5.2.0 pyjson5==1.6.1
+          
+          # Установка зависимостей для распаковки
           cd unpack
-          pdm config venv.in_project true
-          pdm install
-          pip install --force-reinstall pyjson5 chardet
-          pip install -r downloader/requirements.txt
+          pip install -r requirements.txt
+          
+          # Проверка установки chardet
+          python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
+          
+          # Установка зависимостей для downloader
+          cd downloader
+          pip install -r requirements.txt
+
+      # Кэширование ресурсов
+      - name: Restore cached resources
+        id: restore-resources
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            unpack/downloader/output
+            unpack/images
+            unpack/audio
+          key: resources-${{ runner.os }}-${{ github.sha }}
 
       # Загрузка ресурсов (если кэш не найден)
-      - name: Download Resources (if cache missed)
-        if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
+      - name: Download resources (if cache missed)
+        if: steps.restore-resources.outputs.cache-hit != 'true'
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
+          .\.venv\Scripts\activate
           cd unpack/downloader
+          
           if (!(Test-Path "config.json5")) {
             Write-Error "Файл config.json5 не найден!"
             exit 1
           }
+          
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
-      # Сохранение кэша ресурсов
-      - name: Cache Downloaded Resources
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: unpack/downloader/output
-          key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
-
-      # Обработка изображений
-      - name: Restore Cached Images
-        id: restore-image-resources
-        uses: actions/cache/restore@v4
-        with:
-          path: unpack/images
-          key: gf-image-resources-${{ runner.os }}-${{ github.sha }}
-
-      - name: Unpack images
+      # Обработка изображений и аудио
+      - name: Process assets
         run: |
-          cd unpack
           .\.venv\Scripts\activate
+          cd unpack
+          
+          # Проверка chardet перед выполнением
+          python -c "import chardet; print('chardet version:', chardet.__version__)"
+          
+          # Обработка изображений
           $env:PYTHONPATH = "$pwd\src"
           python tests/test_backgrounds.py
           python tests/test_characters.py
-
-      - name: Cache Images
-        uses: actions/cache/save@v4
-        if: always()
-        with:
-          path: unpack/images
-          key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
-
-      # Обработка аудио
-      - name: Restore Cached Audio
-        id: restore-audio-resources
-        uses: actions/cache/restore@v4
-        with:
-          path: unpack/audio
-          key: gf-audio-resources-${{ runner.os }}-${{ github.sha }}
-
-      - name: Unpack audio
-        run: |
-          cd unpack
-          .\.venv\Scripts\activate
-          $env:PYTHONPATH = "$pwd\src"
+          
+          # Обработка аудио
           python tests/test_audio.py
 
-      - name: Cache Audio
+      # Сохранение кэша ресурсов
+      - name: Save resources cache
         uses: actions/cache/save@v4
         if: always()
         with:
-          path: unpack/audio
-          key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
+          path: |
+            unpack/downloader/output
+            unpack/images
+            unpack/audio
+          key: ${{ steps.restore-resources.outputs.cache-primary-key }}
 
-      # Распаковка ресурсов
+      # Распаковка ресурсов (с гарантированной активацией окружения)
       - name: Unpack resources
         run: |
           $ErrorActionPreference = "Stop"
+          .\.venv\Scripts\activate
           cd unpack
           
-          # Проверка установки chardet
-          .\.venv\Scripts\activate
+          # Проверка chardet
           python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
           
           # Запуск распаковки
           python -m gfunpack downloader/output -o .
           
-          # Проверка файлов
+          # Проверка созданных файлов
           $requiredFiles = @(
               "audio/audio.json",
               "images/backgrounds.json",
@@ -168,6 +160,8 @@ jobs:
           foreach ($file in $requiredFiles) {
               if (-not (Test-Path $file)) {
                   Write-Host "::warning file=$file::File $file not found"
+              } else {
+                  Write-Host "Found file: $file"
               }
           }
 
@@ -192,6 +186,9 @@ jobs:
           foreach ($file in $jsonFiles) {
               if (Test-Path $file)) {
                   Copy-Item $file "../src/assets" -Force
+                  Write-Host "Copied: $file"
+              } else {
+                  Write-Host "::warning::File not found: $file"
               }
           }
           
@@ -200,6 +197,9 @@ jobs:
           foreach ($folder in $folders) {
               if (Test-Path $folder)) {
                   Move-Item $folder "../public" -Force
+                  Write-Host "Moved folder: $folder"
+              } else {
+                  Write-Host "::warning::Folder not found: $folder"
               }
           }
 
