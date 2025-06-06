@@ -67,30 +67,30 @@ jobs:
           # Применяем критические исправления кода
           $utilsFile = "src/gfunpack/utils.py"
           $newUtilsCode = @"
-import UnityPy
-from pathlib import Path
-import logging
-
-logger = logging.getLogger(__name__)
-
-def read_text_asset(asset_path: Path, asset_name: str) -> str:
-    try:
-        env = UnityPy.load(str(asset_path))
-        for obj in env.objects:
-            if obj.type.name == 'TextAsset':
-                data = obj.read()
-                if data.name == asset_name:
-                    if isinstance(data.m_Script, bytes):
-                        return data.m_Script.decode('utf-8')
-                    elif isinstance(data.m_Script, str):
-                        return data.m_Script
-                    else:
-                        return str(data.m_Script)
-        raise ValueError(f"Asset {asset_name} not found in {asset_path}")
-    except Exception as e:
-        logger.error(f"Error reading text asset {asset_name}: {e}")
-        return ""
-"@
+          import UnityPy
+          from pathlib import Path
+          import logging
+          
+          logger = logging.getLogger(__name__)
+          
+          def read_text_asset(asset_path: Path, asset_name: str) -> str:
+              try:
+                  env = UnityPy.load(str(asset_path))
+                  for obj in env.objects:
+                      if obj.type.name == 'TextAsset':
+                          data = obj.read()
+                          if data.name == asset_name:
+                              if isinstance(data.m_Script, bytes):
+                                  return data.m_Script.decode('utf-8')
+                              elif isinstance(data.m_Script, str):
+                                  return data.m_Script
+                              else:
+                                  return str(data.m_Script)
+                  raise ValueError(f"Asset {asset_name} not found in {asset_path}")
+              except Exception as e:
+                  logger.error(f"Error reading text asset {asset_name}: {e}")
+                  return ""
+          "@
           $newUtilsCode | Set-Content $utilsFile -Encoding UTF8
           
           $prefabsFile = "src/gfunpack/prefabs.py"
