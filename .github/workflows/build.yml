@@ -84,6 +84,23 @@ jobs:
           python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
           pip list
 
+      # Исправление ошибки импорта Path в utils.py
+      - name: Fix Path import in gfunpack.utils
+        run: |
+          $filePath = "unpack/src/gfunpack/utils.py"
+          $importLine = "from pathlib import Path"
+          
+          # Проверяем, есть ли уже импорт Path
+          if (-not (Select-String -Path $filePath -Pattern "from pathlib import Path" -SimpleMatch)) {
+            # Добавляем импорт в начало файла
+            $content = Get-Content $filePath -Raw
+            $fixedContent = "$importLine`n`n$content"
+            Set-Content -Path $filePath -Value $fixedContent -Encoding UTF8
+            Write-Host "Added Path import to utils.py"
+          } else {
+            Write-Host "Path import already exists in utils.py"
+          }
+
       # Кэширование ресурсов
       - name: Restore cached resources
         id: restore-resources
