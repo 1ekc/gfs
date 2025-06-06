@@ -96,21 +96,26 @@ jobs:
             $utilsContent = "from pathlib import Path`n`n" + $utilsContent
           }
           
-          # Заменяем data.name на data.asset_name
-          $utilsContent = $utilsContent -replace 'data\.name', 'data.asset_name'
+          # Заменяем data.name и data.asset_name на data.assets_file
+          $utilsContent = $utilsContent -replace 'data\.(name|asset_name)', 'data.assets_file'
           Set-Content -Path $utilsPath -Value $utilsContent -Encoding UTF8
           
           # Исправление для prefabs.py
           $prefabsPath = "unpack/src/gfunpack/prefabs.py"
           $prefabsContent = Get-Content $prefabsPath -Raw
           
-          # Добавляем импорт List
-          if (-not $prefabsContent.Contains("from typing import List")) {
-            $prefabsContent = "from typing import List`n" + $prefabsContent
+          # Добавляем импорт List и Dict
+          if (-not $prefabsContent.Contains("from typing import List, Dict")) {
+            $prefabsContent = "from typing import List, Dict`n" + $prefabsContent
+          }
+          
+          # Добавляем импорт GameObject
+          if (-not $prefabsContent.Contains("from .models import GameObject")) {
+            $prefabsContent = "from .models import GameObject`n" + $prefabsContent
           }
           Set-Content -Path $prefabsPath -Value $prefabsContent -Encoding UTF8
 
-      # Загрузка ресурсов (всегда выполняется, но использует кэш если есть)
+      # Загрузка ресурсов
       - name: Download resources
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
