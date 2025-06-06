@@ -12,18 +12,31 @@ jobs:
         with:
           submodules: 'recursive'
 
-      # System configuration
-      - name: Configure system encoding
+      # Установка UTF-8 для поддержки кириллицы
+      - name: Configure UTF-8 environment
         run: |
-          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          chcp 65001 | Out-Null
-          git config --global core.quotepath false
-          $env:PYTHONUTF8 = "1"
-          $env:LC_ALL = "C.UTF-8"
-      # Dependency checks
-      - name: Check Disk Space (Windows)
+          echo "PYTHONIOENCODING=utf-8" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          chcp 65001  # Устанавливаем кодовую страницу UTF-8 для консоли
+
+      # Кэширование с улучшенным ключом
+      - name: Cache venv
+        uses: actions/cache@v3
+        id: cache-venv
+        with:
+          path: .venv
+          key: venv-${{ runner.os }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('.github/workflows/*.yml') }}
+
+      # Создание и настройка venv
+      - name: Create virtual environment
+        if: steps.cache-venv.outputs.cache-hit != 'true'
         run: |
-          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+          python -m venv .venv
+          .\.venv\Scripts\activate
+          python -m pip install --upgrade pip wheel
+      - name: Install dependencies
+        run: |
+          .\.venv\Scripts\activate
+          pip install --force-reinstall -r requirements.txt
       # Package installation
       - name: Install Windows Dependencies
         run: |
@@ -35,13 +48,12 @@ jobs:
           magick --version
           git lfs version
           node --version
-          
 
-      - name: Setup Git LFS
-        run: |
-          git lfs install
-          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
-          git add .gitattributes
+#      - name: Setup Git LFS
+#        run: |
+#          git lfs install
+#          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
+#          git add .gitattributes
 
       - name: Install vgmstream
         run: |
