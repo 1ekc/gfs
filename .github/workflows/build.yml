@@ -14,6 +14,7 @@ jobs:
         with:
           submodules: 'recursive'
 
+      # Начальная настройка
       - name: Initialize environment
         run: |
           [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
@@ -22,6 +23,7 @@ jobs:
           echo "PYTHONIOENCODING=UTF-8" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
           echo "PYTHONUTF8=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
+      # Установка системных зависимостей
       - name: Install Windows dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
@@ -33,6 +35,7 @@ jobs:
           git lfs version
           node --version
 
+      # Установка vgmstream
       - name: Install vgmstream
         run: |
           Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
@@ -40,66 +43,48 @@ jobs:
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
+      # Настройка PNPM
       - name: Setup PNPM
         run: |
           npm install -g pnpm
           pnpm -v
 
+      # Кэширование Python окружения
+      - name: Cache Python environment
+        uses: actions/cache@v3
+        id: cache-python
+        with:
+          path: |
+            .venv
+          key: python-env-${{ runner.os }}-${{ hashFiles('unpack/requirements.txt') }}
+
+      # Создание и активация виртуального окружения
       - name: Setup Python environment
         run: |
-          # Создаем виртуальное окружение в корне проекта
-          python -m venv .venv
-          $venvPath = "$pwd\.venv"
-          
-          # Установка основных зависимостей напрямую
-          & "$venvPath\Scripts\pip.exe" install UnityPy==1.10.1
-          & "$venvPath\Scripts\pip.exe" install chardet==5.2.0
-          & "$venvPath\Scripts\pip.exe" install pyjson5==1.6.1
-          & "$venvPath\Scripts\pip.exe" install pillow==11.2.1
-          & "$venvPath\Scripts\pip.exe" install requests==2.25.0
-          & "$venvPath\Scripts\pip.exe" install tqdm==4.66.0
-          
-          # Установка зависимостей из файла (если существует)
-          if (Test-Path "requirements.txt") {
-              & "$venvPath\Scripts\pip.exe" install -r requirements.txt
-          }
-          if (Test-Path "unpack/requirements.txt") {
-              & "$venvPath\Scripts\pip.exe" install -r unpack/requirements.txt
+          # Создаем окружение только при отсутствии кэша
+          if ("${{ steps.cache-python.outputs.cache-hit }}" -ne 'true') {
+            python -m venv .venv
           }
           
-          # Применяем критические исправления кода
-          $utilsCode = @'
-import UnityPy
-from pathlib import Path
-import logging
-
-logger = logging.getLogger(__name__)
-
-def read_text_asset(asset_path: Path, asset_name: str) -> str:
-    try:
-        env = UnityPy.load(str(asset_path))
-        for obj in env.objects:
-            if obj.type.name == 'TextAsset':
-                data = obj.read()
-                if data.name == asset_name:
-                    if isinstance(data.m_Script, bytes):
-                        return data.m_Script.decode('utf-8')
-                    elif isinstance(data.m_Script, str):
-                        return data.m_Script
-                    else:
-                        return str(data.m_Script)
-        raise ValueError('Asset ' + asset_name + ' not found in ' + str(asset_path))
-    except Exception as e:
-        logger.error('Error reading text asset ' + asset_name + ': ' + str(e))
-        return ""
-'@
-          $utilsCode | Set-Content "unpack/src/gfunpack/utils.py" -Encoding UTF8
+          # Активируем окружение и проверяем
+          .\.venv\Scripts\activate
+          pip install --upgrade pip wheel setuptools
+          pip install chardet==5.2.0 pyjson5==1.6.1
           
-          $prefabsCode = Get-Content "unpack/src/gfunpack/prefabs.py" -Raw
-          $prefabsCode = $prefabsCode -replace "if data\.name is not None and data\.name != '':", 
-                                              "if hasattr(data, 'm_Name') and data.m_Name is not None and data.m_Name != '':"
-          $prefabsCode | Set-Content "unpack/src/gfunpack/prefabs.py" -Encoding UTF8
+          # Установка зависимостей для распаковки
+          cd unpack
+          pip install -r requirements.txt
+          
+          # Установка зависимостей для downloader
+          cd downloader
+          pip install -r requirements.txt
+          cd ../..
+          
+          # Проверка установки
+          python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
+          pip list
 
+      # Кэширование ресурсов
       - name: Restore cached resources
         id: restore-resources
         uses: actions/cache/restore@v4
@@ -110,6 +95,7 @@ def read_text_asset(asset_path: Path, asset_name: str) -> str:
             unpack/audio
           key: resources-${{ runner.os }}-${{ github.sha }}
 
+      # Загрузка ресурсов (если кэш не найден)
       - name: Download resources (if cache missed)
         if: steps.restore-resources.outputs.cache-hit != 'true'
         env:
@@ -117,45 +103,82 @@ def read_text_asset(asset_path: Path, asset_name: str) -> str:
         run: |
           .\.venv\Scripts\activate
           cd unpack/downloader
+          
+          if (!(Test-Path "config.json5")) {
+            Write-Error "Файл config.json5 не найден!"
+            exit 1
+          }
+          
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
+      # Обработка изображений и аудио
       - name: Process assets
         run: |
           .\.venv\Scripts\activate
           cd unpack
           
-          # Обработка изображений с обработкой ошибок
-          try {
-              python tests/test_backgrounds.py
-          } catch {
-              Write-Host "::warning::Background processing failed, continuing..."
-          }
+          # Проверка chardet перед выполнением
+          python -c "import chardet; print('chardet version:', chardet.__version__)"
           
-          try {
-              python tests/test_characters.py
-          } catch {
-              Write-Host "::warning::Character processing failed, continuing..."
-          }
+          # Обработка изображений
+          $env:PYTHONPATH = "$pwd\src"
+          python tests/test_backgrounds.py
+          python tests/test_characters.py
           
-          try {
-              python tests/test_audio.py
-          } catch {
-              Write-Host "::warning::Audio processing failed, continuing..."
-          }
+          # Обработка аудио
+          python tests/test_audio.py
 
+      # Сохранение кэша ресурсов
+      - name: Save resources cache
+        uses: actions/cache/save@v4
+        if: always()
+        with:
+          path: |
+            unpack/downloader/output
+            unpack/images
+            unpack/audio
+          key: ${{ steps.restore-resources.outputs.cache-primary-key }}
+
+      # Распаковка ресурсов
       - name: Unpack resources
         run: |
+          $ErrorActionPreference = "Stop"
           .\.venv\Scripts\activate
           cd unpack
+          
+          # Проверка chardet
+          python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
+          
+          # Запуск распаковки
           python -m gfunpack downloader/output -o .
+          
+          # Проверка созданных файлов
+          $requiredFiles = @(
+              "audio/audio.json",
+              "images/backgrounds.json",
+              "images/characters.json",
+              "stories/stories.json",
+              "stories/chapters.json"
+          )
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  Write-Host "::warning file=$file::File $file not found"
+              } else {
+                  Write-Host "Found file: $file"
+              }
+          }
 
+      # Перемещение ресурсов
       - name: Move resources
         run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           cd unpack
-          New-Item -ItemType Directory -Path "../src/assets" -Force
-          New-Item -ItemType Directory -Path "../public" -Force
           
-          # Копирование JSON с проверкой
+          # Создание директорий
+          New-Item -ItemType Directory -Path "../src/assets" -Force | Out-Null
+          New-Item -ItemType Directory -Path "../public" -Force | Out-Null
+          
+          # Копирование JSON файлов
           $jsonFiles = @(
               "audio/audio.json",
               "images/backgrounds.json",
@@ -166,6 +189,7 @@ def read_text_asset(asset_path: Path, asset_name: str) -> str:
           foreach ($file in $jsonFiles) {
               if (Test-Path $file) {
                   Copy-Item $file "../src/assets" -Force
+                  Write-Host "Copied: $file"
               } else {
                   Write-Host "::warning::File not found: $file"
               }
@@ -176,14 +200,16 @@ def read_text_asset(asset_path: Path, asset_name: str) -> str:
           foreach ($folder in $folders) {
               if (Test-Path $folder) {
                   Move-Item $folder "../public" -Force
+                  Write-Host "Moved folder: $folder"
               } else {
                   Write-Host "::warning::Folder not found: $folder"
               }
           }
 
+      # Сборка сайта
       - name: Build site
         run: |
-          # Проверка и создание недостающих файлов
+          # Проверка файлов
           $requiredAssets = @(
               "src/assets/audio.json",
               "src/assets/backgrounds.json",
@@ -193,15 +219,17 @@ def read_text_asset(asset_path: Path, asset_name: str) -> str:
           )
           foreach ($file in $requiredAssets) {
               if (-not (Test-Path $file)) {
-                  Write-Host "::warning::Creating empty file: $file"
-                  New-Item -Path $file -ItemType File -Force
+                  Write-Host "::error file=$file::Required file missing"
+                  exit 1
               }
           }
           
+          # Сборка
           pnpm install --frozen-lockfile
           pnpm build-index
           pnpm build
 
+      # Публикация
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
