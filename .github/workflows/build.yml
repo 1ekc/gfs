@@ -128,9 +128,27 @@ jobs:
             exit 1
           }
           
+          # Загрузка основной папки
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
+          
+          # Проверяем наличие текстовых файлов
+          $txtFiles = Get-ChildItem -Path "output" -Filter "*.txt" -Recurse
+          if (-not $txtFiles) {
+              Write-Host "Текстовые файлы не найдены, загружаем gf-data-rus..."
+              python downloader.py --folder-id "ID_GF_DATA_RUS" --output "gf-data-rus"
+              
+              # Копируем файлы из gf-data-rus в output
+              Get-ChildItem -Path "gf-data-rus" -Recurse | ForEach-Object {
+                  $dest = $_.FullName.Replace("gf-data-rus", "output")
+                  $destDir = Split-Path -Path $dest -Parent
+                  if (-not (Test-Path $destDir)) {
+                      New-Item -ItemType Directory -Path $destDir -Force
+                  }
+                  Copy-Item -Path $_.FullName -Destination $dest -Force
+              }
+          }
 
-      # Обработка изображений и аудио
+      # Обработка изображений и аудио с альтернативными путями
       - name: Process assets
         run: |
           .\.venv\Scripts\activate
@@ -144,8 +162,35 @@ jobs:
           python tests/test_backgrounds.py
           python tests/test_characters.py
           
-          # Обработка аудио
-          python tests/test_audio.py
+          # Обработка аудио с проверкой альтернативных путей
+          $audioScript = @"
+          import os
+          import sys
+          from pathlib import Path
+          from gfunpack import audio
+          
+          def test_audio_with_fallback():
+              main_dir = 'downloader/output'
+              fallback_dir = 'downloader/gf-data-rus'
+              output_dir = 'audio'
+              
+              # Проверяем основной путь
+              if Path(main_dir).joinpath('asset_textes.ab').exists():
+                  bgm = audio.BGM(main_dir, output_dir)
+                  bgm.extract_and_convert()
+              elif Path(fallback_dir).joinpath('asset_textes.ab').exists():
+                  print("Using fallback audio directory")
+                  bgm = audio.BGM(fallback_dir, output_dir)
+                  bgm.extract_and_convert()
+              else:
+                  raise FileNotFoundError("No audio asset files found")
+          
+          if __name__ == '__main__':
+              test_audio_with_fallback()
+          "@
+                    
+          $audioScript | Out-File -FilePath "test_audio_fallback.py" -Encoding UTF8
+          python test_audio_fallback.py
 
       # Распаковка ресурсов
       - name: Unpack resources
@@ -159,6 +204,11 @@ jobs:
           
           # Запуск распаковки
           python -m gfunpack downloader/output -o .
+          
+          # Если в output нет файлов, пробуем gf-data-rus
+          if (-not (Test-Path "audio/audio.json")) {
+              python -m gfunpack downloader/gf-data-rus -o .
+          }
           
           # Проверка созданных файлов
           $requiredFiles = @(
