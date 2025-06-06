@@ -33,11 +33,11 @@ jobs:
           python -m venv .venv
           .\.venv\Scripts\activate
           python -m pip install --upgrade pip wheel
-      - name: Install dependencies
-        run: |
-          .\.venv\Scripts\activate
-          pip install --force-reinstall -r requirements.txt
-      # Package installation
+#      - name: Install dependencies
+#        run: |
+#          .\.venv\Scripts\activate
+#          pip install --force-reinstall -r requirements.txt
+#      # Package installation
       - name: Install Windows Dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
