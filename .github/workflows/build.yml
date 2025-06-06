@@ -3,41 +3,35 @@ name: Windows Self-Hosted Build
 on:
   workflow_dispatch:
   push:
+
 jobs:
   build:
     runs-on: self-hosted
     environment: production
+
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      # Установка UTF-8 для поддержки кириллицы
+      # Настройка окружения UTF-8
       - name: Configure UTF-8 environment
         run: |
-          echo "PYTHONIOENCODING=utf-8" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          chcp 65001  # Устанавливаем кодовую страницу UTF-8 для консоли
+          [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          [System.Console]::InputEncoding = [System.Text.Encoding]::UTF8
+          chcp 65001
+          echo "PYTHONIOENCODING=UTF-8" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
+          echo "PYTHONUTF8=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
 
-      # Кэширование с улучшенным ключом
+      # Кэширование виртуального окружения
       - name: Cache venv
         uses: actions/cache@v3
         id: cache-venv
         with:
           path: .venv
-          key: venv-${{ runner.os }}-${{ hashFiles('requirements.txt') }}-${{ hashFiles('.github/workflows/*.yml') }}
+          key: venv-${{ runner.os }}-py3.10-${{ hashFiles('requirements.txt') }}-${{ hashFiles('.github/workflows/*.yml') }}
 
-      # Создание и настройка venv
-      - name: Create virtual environment
-        if: steps.cache-venv.outputs.cache-hit != 'true'
-        run: |
-          python -m venv .venv
-          .\.venv\Scripts\activate
-          python -m pip install --upgrade pip wheel
-#      - name: Install dependencies
-#        run: |
-#          .\.venv\Scripts\activate
-#          pip install --force-reinstall -r requirements.txt
-#      # Package installation
+      # Установка системных зависимостей
       - name: Install Windows Dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
@@ -49,12 +43,7 @@ jobs:
           git lfs version
           node --version
 
-#      - name: Setup Git LFS
-#        run: |
-#          git lfs install
-#          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
-#          git add .gitattributes
-
+      # Установка vgmstream
       - name: Install vgmstream
         run: |
           Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
@@ -62,30 +51,34 @@ jobs:
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
+      # Настройка PNPM
       - name: Setup PNPM
         run: |
           npm install -g pnpm
           pnpm -v
 
+      # Восстановление кэша ресурсов
       - name: Restore Cached Resources
         id: restore-gf-downloader-resources
         uses: actions/cache/restore@v4
         with:
-          path: |
-            unpack/downloader/output
-          key: gf-downloader-resources-${{ runner.os }}
+          path: unpack/downloader/output
+          key: gf-downloader-resources-${{ runner.os }}-${{ github.sha }}
 
+      # Настройка Python окружения
       - name: Setup Python Environment
         run: |
-          python -m pip install --upgrade pip
+          python -m venv .venv
+          .\.venv\Scripts\activate
+          python -m pip install --upgrade pip wheel setuptools
           pip install pdm
           cd unpack
           pdm config venv.in_project true
           pdm install
-          .\.venv\Scripts\Activate.ps1
-          pip install pyjson5 chardet  # Критически важные зависимости
+          pip install --force-reinstall pyjson5 chardet
           pip install -r downloader/requirements.txt
 
+      # Загрузка ресурсов (если кэш не найден)
       - name: Download Resources (if cache missed)
         if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
@@ -98,75 +91,73 @@ jobs:
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
+      # Сохранение кэша ресурсов
       - name: Cache Downloaded Resources
         uses: actions/cache/save@v4
+        if: always()
         with:
-          path: |
-            unpack/downloader/output
+          path: unpack/downloader/output
           key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
 
-      # ===== КОРРЕКТИРОВКА ДЛЯ ИЗОБРАЖЕНИЙ И АУДИО =====
+      # Обработка изображений
       - name: Restore Cached Images
         id: restore-image-resources
         uses: actions/cache/restore@v4
         with:
-          path: |
-            unpack/images
-          key: gf-image-resources-${{ runner.os }}
+          path: unpack/images
+          key: gf-image-resources-${{ runner.os }}-${{ github.sha }}
 
       - name: Unpack images
         run: |
           cd unpack
-          .\.venv\Scripts\Activate.ps1
-          $env:PYTHONPATH = "$pwd\src"  # Ключевое исправление
+          .\.venv\Scripts\activate
+          $env:PYTHONPATH = "$pwd\src"
           python tests/test_backgrounds.py
           python tests/test_characters.py
 
       - name: Cache Images
         uses: actions/cache/save@v4
+        if: always()
         with:
-          path: |
-            unpack/images
+          path: unpack/images
           key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
 
+      # Обработка аудио
       - name: Restore Cached Audio
         id: restore-audio-resources
         uses: actions/cache/restore@v4
         with:
-          path: |
-            unpack/audio
-          key: gf-audio-resources-${{ runner.os }}
+          path: unpack/audio
+          key: gf-audio-resources-${{ runner.os }}-${{ github.sha }}
 
       - name: Unpack audio
         run: |
           cd unpack
-          .\.venv\Scripts\Activate.ps1
-          $env:PYTHONPATH = "$pwd\src"  # Ключевое исправление
+          .\.venv\Scripts\activate
+          $env:PYTHONPATH = "$pwd\src"
           python tests/test_audio.py
 
       - name: Cache Audio
         uses: actions/cache/save@v4
+        if: always()
         with:
-          path: |
-            unpack/audio
+          path: unpack/audio
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
 
-      # ===== КОРРЕКТИРОВКА ДЛЯ РАСПАКОВКИ РЕСУРСОВ =====
+      # Распаковка ресурсов
       - name: Unpack resources
         run: |
           $ErrorActionPreference = "Stop"
           cd unpack
           
-          # Явный путь к интерпретатору
-          $python = "$pwd\.venv\Scripts\python.exe"
-          
-          # Проверка доступности chardet
-          & $python -c "import chardet; print('chardet version:', chardet.__version__)"
+          # Проверка установки chardet
+          .\.venv\Scripts\activate
+          python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
           
           # Запуск распаковки
-          & $python -m gfunpack downloader/output -o .
+          python -m gfunpack downloader/output -o .
           
-          # Проверка созданных файлов
+          # Проверка файлов
           $requiredFiles = @(
               "audio/audio.json",
               "images/backgrounds.json",
@@ -177,53 +168,45 @@ jobs:
           foreach ($file in $requiredFiles) {
               if (-not (Test-Path $file)) {
                   Write-Host "::warning file=$file::File $file not found"
-              } else {
-                  Write-Host "Found file: $file"
               }
           }
 
-      # ===== ПЕРЕМЕЩЕНИЕ РЕСУРСОВ =====
+      # Перемещение ресурсов
       - name: Move resources
         run: |
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
           cd unpack
           
-          # Создаем директории
+          # Создание директорий
           New-Item -ItemType Directory -Path "../src/assets" -Force | Out-Null
           New-Item -ItemType Directory -Path "../public" -Force | Out-Null
           
-          # Копируем JSON файлы
-          $copiedFiles = @(
-              @{source="audio/audio.json"; dest="../src/assets"},
-              @{source="images/backgrounds.json"; dest="../src/assets"},
-              @{source="images/characters.json"; dest="../src/assets"},
-              @{source="stories/stories.json"; dest="../src/assets"},
-              @{source="stories/chapters.json"; dest="../src/assets"}
+          # Копирование JSON файлов
+          $jsonFiles = @(
+              "audio/audio.json",
+              "images/backgrounds.json",
+              "images/characters.json",
+              "stories/stories.json",
+              "stories/chapters.json"
           )
-          foreach ($file in $copiedFiles) {
-              if (Test-Path $file.source) {
-                  Copy-Item $file.source $file.dest -Force
-                  Write-Host "Copied: $($file.source) -> $($file.dest)"
-              } else {
-                  Write-Host "::warning::File not found: $($file.source)"
+          foreach ($file in $jsonFiles) {
+              if (Test-Path $file)) {
+                  Copy-Item $file "../src/assets" -Force
               }
           }
           
-          # Перемещаем папки
+          # Перемещение папок
           $folders = @("audio", "images", "stories")
           foreach ($folder in $folders) {
-              if (Test-Path $folder) {
+              if (Test-Path $folder)) {
                   Move-Item $folder "../public" -Force
-                  Write-Host "Moved folder: $folder"
-              } else {
-                  Write-Host "::warning::Folder not found: $folder"
               }
           }
 
-      # ===== СБОРКА САЙТА =====
+      # Сборка сайта
       - name: Build site
         run: |
-          # Проверяем наличие необходимых файлов
+          # Проверка файлов
           $requiredAssets = @(
               "src/assets/audio.json",
               "src/assets/backgrounds.json",
@@ -243,7 +226,7 @@ jobs:
           pnpm build-index
           pnpm build
 
-      # ===== ПУБЛИКАЦИЯ =====
+      # Публикация
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
