@@ -47,49 +47,58 @@ jobs:
 
       - name: Setup Python environment
         run: |
-          # Создаем новое виртуальное окружение без наследования системных пакетов
-          python -m venv --clear .venv
-          .\.venv\Scripts\activate
+          # Создаем виртуальное окружение в корне проекта
+          python -m venv .venv
+          $venvPath = "$pwd\.venv"
           
-          # Установка основных зависимостей без обновления pip
-          pip install UnityPy==1.10.1 chardet==5.2.0 pyjson5==1.6.1
+          # Установка основных зависимостей напрямую
+          & "$venvPath\Scripts\pip.exe" install UnityPy==1.10.1
+          & "$venvPath\Scripts\pip.exe" install chardet==5.2.0
+          & "$venvPath\Scripts\pip.exe" install pyjson5==1.6.1
+          & "$venvPath\Scripts\pip.exe" install pillow==11.2.1
+          & "$venvPath\Scripts\pip.exe" install requests==2.25.0
+          & "$venvPath\Scripts\pip.exe" install tqdm==4.66.0
           
-          # Переходим в папку unpack и устанавливаем зависимости
-          cd unpack
-          pip install -r requirements.txt
+          # Установка зависимостей из файла (если существует)
+          if (Test-Path "requirements.txt") {
+              & "$venvPath\Scripts\pip.exe" install -r requirements.txt
+          }
+          if (Test-Path "unpack/requirements.txt") {
+              & "$venvPath\Scripts\pip.exe" install -r unpack/requirements.txt
+          }
           
           # Применяем критические исправления кода
-          $utilsCode = @"
-          import UnityPy
-          from pathlib import Path
-          import logging
-          
-          logger = logging.getLogger(__name__)
+          $utilsCode = @'
+import UnityPy
+from pathlib import Path
+import logging
 
-          def read_text_asset(asset_path: Path, asset_name: str) -> str:
-              try:
-                  env = UnityPy.load(str(asset_path))
-                  for obj in env.objects:
-                      if obj.type.name == 'TextAsset':
-                          data = obj.read()
-                          if data.name == asset_name:
-                              if isinstance(data.m_Script, bytes):
-                                  return data.m_Script.decode('utf-8')
-                              elif isinstance(data.m_Script, str):
-                                  return data.m_Script
-                              else:
-                                  return str(data.m_Script)
-                  raise ValueError(f"Asset {asset_name} not found in {asset_path}")
-              except Exception as e:
-                  logger.error(f"Error reading text asset {asset_name}: {e}")
-                  return ""
-          "@
-          $utilsCode | Set-Content "src/gfunpack/utils.py" -Encoding UTF8
+logger = logging.getLogger(__name__)
+
+def read_text_asset(asset_path: Path, asset_name: str) -> str:
+    try:
+        env = UnityPy.load(str(asset_path))
+        for obj in env.objects:
+            if obj.type.name == 'TextAsset':
+                data = obj.read()
+                if data.name == asset_name:
+                    if isinstance(data.m_Script, bytes):
+                        return data.m_Script.decode('utf-8')
+                    elif isinstance(data.m_Script, str):
+                        return data.m_Script
+                    else:
+                        return str(data.m_Script)
+        raise ValueError('Asset ' + asset_name + ' not found in ' + str(asset_path))
+    except Exception as e:
+        logger.error('Error reading text asset ' + asset_name + ': ' + str(e))
+        return ""
+'@
+          $utilsCode | Set-Content "unpack/src/gfunpack/utils.py" -Encoding UTF8
           
-          $prefabsCode = Get-Content "src/gfunpack/prefabs.py" -Raw
+          $prefabsCode = Get-Content "unpack/src/gfunpack/prefabs.py" -Raw
           $prefabsCode = $prefabsCode -replace "if data\.name is not None and data\.name != '':", 
                                               "if hasattr(data, 'm_Name') and data.m_Name is not None and data.m_Name != '':"
-          $prefabsCode | Set-Content "src/gfunpack/prefabs.py" -Encoding UTF8
+          $prefabsCode | Set-Content "unpack/src/gfunpack/prefabs.py" -Encoding UTF8
 
       - name: Restore cached resources
         id: restore-resources
