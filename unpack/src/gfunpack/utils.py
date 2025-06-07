@@ -40,17 +40,13 @@ def pngquant(image_path: pathlib.Path, use_pngquant: bool):
         os.replace(quant_path, image_path)
 
 
-def read_text_asset(asset_path: Path, asset_name: str) -> str:
-    env = UnityPy.load(str(asset_path))
-    for obj in env.objects:
-        if obj.type.name == 'TextAsset':
-            data = obj.read()
-            if data.name == asset_name:
-                # Исправление: проверка типа данных
-                if isinstance(data.m_Script, bytes):
-                    return data.m_Script.decode('utf-8')
-                elif isinstance(data.m_Script, str):
-                    return data.m_Script
-                else:
-                    return str(data.m_Script)
-    raise ValueError(f"Asset {asset_name} not found in {asset_path}")
+def read_text_asset(bundle: pathlib.Path, container: str):
+    asset = UnityPy.load(str(bundle))
+    profile_reader = [o for o in asset.objects if o.container == container][0]
+    assert profile_reader.type.name == 'TextAsset'
+    profile = typing.cast(
+        TextAsset,
+        profile_reader.read(),
+    )
+    content: str = profile.m_Script.tobytes().decode()
+    return content
