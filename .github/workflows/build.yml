@@ -112,7 +112,7 @@ jobs:
       - name: Unpack images
         run: |
           cd unpack
-          source .venv/bin/activate
+          .venv/bin/activate
           python tests/test_backgrounds.py
           python tests/test_characters.py
       - name: Cache Resources (images)
@@ -131,7 +131,7 @@ jobs:
       - name: Unpack audio
         run: |
           cd unpack
-          source .venv/bin/activate
+          .venv/bin/activate
           python tests/test_audio.py
       - name: Cache Resources (audio)
         uses: actions/cache/save@v4
@@ -142,7 +142,7 @@ jobs:
       - name: Unpack resources
         run: |
           cd unpack
-          source .venv/bin/activate
+          .venv/bin/activate
           python -m gfunpack downloader/output -o .
 
       # Перемещение ресурсов
