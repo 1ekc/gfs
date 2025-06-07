@@ -43,11 +43,12 @@ jobs:
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
 
-      # Настройка PNPM
+      # Настройка PNPM с явным указанием версии
       - name: Setup PNPM
-        run: |
-          npm install -g pnpm
-          pnpm -v
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.4.0
+          run_install: false
 
       # Кэширование Python окружения
       - name: Cache Python environment
@@ -161,7 +162,8 @@ jobs:
               )
               
               foreach ($asset in $requiredAssets) {
-                  if (-not (Test-AssetFile "downloader/output/asset_textes.ab" $asset)) {
+                  $found = Test-AssetFile "downloader/output/asset_textes.ab" $asset
+                  if (-not $found) {
                       Write-Host "Ассет $asset не найден, будет использована папка gf-data-rus"
                       $useFallback = $true
                       break
@@ -178,7 +180,7 @@ jobs:
                       $dest = Join-Path "downloader/output" $relativePath
                       $destDir = Split-Path -Path $dest -Parent
                       if (-not (Test-Path $destDir)) {
-                          New-Item -ItemType Directory -Path $destDir -Force
+                          New-Item -ItemType Directory -Path $destDir -Force | Out-Null
                       }
                       Copy-Item -Path $_.FullName -Destination $dest -Force
                   }
@@ -262,9 +264,15 @@ jobs:
               }
           }
 
+      # Установка зависимостей Node.js
+      - name: Install Node.js dependencies
+        run: |
+          pnpm install --frozen-lockfile
+
       # Сборка сайта
       - name: Build site
         run: |
+          # Проверка файлов
           $requiredAssets = @(
               "src/assets/audio.json",
               "src/assets/backgrounds.json",
@@ -279,7 +287,6 @@ jobs:
               }
           }
           
-          pnpm install --frozen-lockfile
           pnpm build-index
           pnpm build
 
