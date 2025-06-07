@@ -110,117 +110,43 @@ jobs:
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
       - name: Unpack images
-        shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
           cd unpack
-          .\.venv\Scripts\activate
-          try {
-              python tests/test_backgrounds.py
-              if ($LASTEXITCODE -ne 0) { throw "Backgrounds test failed" }
-
-              python tests/test_characters.py
-              if ($LASTEXITCODE -ne 0) { throw "Characters test failed" }
-
-              # Проверка созданных файлов
-              $requiredImageFiles = @("images/backgrounds.json", "images/characters.json")
-              foreach ($file in $requiredImageFiles) {
-                  if (-not (Test-Path $file)) {
-                      Write-Host "::warning file=$file::Image file not found after processing"
-                  }
-              }
-          }
-          catch {
-              Write-Host "::error::Image processing failed: $_"
-              exit 1
-          }
-
+          .venv/bin/activate
+          $env:PYTHONPATH = "$pwd\src" 
+          python tests/test_backgrounds.py
+          python tests/test_characters.py
       - name: Cache Resources (images)
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/images
           key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
-
       - name: Restore Cached Resources (audio)
         id: restore-audio-resources
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/audio
-          key: gf-audio-resources-${{ hashFiles('unpack/src/gfunpack/audio.py') }}
-
+          key: gf-audio-resources
       - name: Unpack audio
-        shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
           cd unpack
-          
-          # Проверяем наличие аудио ресурсов перед обработкой
-          $audioAssets = @("asset_audio.ab", "asset_textes.ab")
-          $missingAssets = $audioAssets | Where-Object { -not (Test-Path "downloader/output/$_" ) }
-          
-          if ($missingAssets.Count -gt 0) {
-              Write-Host "::warning::Skipping audio processing - missing assets: $($missingAssets -join ', ')"
-              exit 0
-          }
-          
-          .\.venv\Scripts\activate
-          try {
-              python tests/test_audio.py
-              if ($LASTEXITCODE -ne 0) { throw "Audio test failed" }
-              
-              # Проверка созданных аудио файлов
-              if (-not (Test-Path "audio/audio.json")) {
-                  Write-Host "::warning::Audio JSON file not created"
-              }
-          }
-          catch {
-              Write-Host "::error::Audio processing failed: $_"
-              exit 1
-          }
-
+          .venv/bin/activate
+          $env:PYTHONPATH = "$pwd\src" 
+          python tests/test_audio.py
       - name: Cache Resources (audio)
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/audio
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
-
       - name: Unpack resources
-        shell: pwsh
         run: |
-          $ErrorActionPreference = "Stop"
           cd unpack
-          .\.venv\Scripts\activate
-
-          try {
-              python -m gfunpack downloader/output -o .
-
-              # Проверка основных выходных файлов
-              $requiredFiles = @(
-                  "stories/stories.json",
-                  "stories/chapters.json",
-                  "images/characters.json",
-                  "images/backgrounds.json"
-              )
-
-              $missingFiles = $requiredFiles | Where-Object { -not (Test-Path $_) }
-              if ($missingFiles.Count -gt 0) {
-                  Write-Host "::warning::Missing output files: $($missingFiles -join ', ')"
-              }
-
-              # Дополнительная проверка для аудио (если обрабатывалось)
-              if (Test-Path "downloader/output/asset_audio.ab") {
-                  if (-not (Test-Path "audio/audio.json")) {
-                      Write-Host "::warning::Audio processing completed but audio.json not found"
-                  }
-              }
-          }
-          catch {
-              Write-Host "::error::Resource unpacking failed: $_"
-              exit 1
-          }
+          .venv/bin/activate
+          $env:PYTHONPATH = "$pwd\src" 
+          python -m gfunpack downloader/output -o .
 
       # Перемещение ресурсов
       - name: Move resources
