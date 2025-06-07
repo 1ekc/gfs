@@ -112,7 +112,7 @@ jobs:
       - name: Unpack images
         run: |
           cd unpack
-          .venv/bin/activate
+          .\.venv\Scripts\Activate.ps1
           $env:PYTHONPATH = "$pwd\src" 
           python tests/test_backgrounds.py
           python tests/test_characters.py
@@ -132,7 +132,7 @@ jobs:
       - name: Unpack audio
         run: |
           cd unpack
-          .venv/bin/activate
+          .\.venv\Scripts\Activate.ps1
           $env:PYTHONPATH = "$pwd\src" 
           python tests/test_audio.py
       - name: Cache Resources (audio)
@@ -144,7 +144,7 @@ jobs:
       - name: Unpack resources
         run: |
           cd unpack
-          .venv/bin/activate
+          .\.venv\Scripts\Activate.ps1
           $env:PYTHONPATH = "$pwd\src" 
           python -m gfunpack downloader/output -o .
 
