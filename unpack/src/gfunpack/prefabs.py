@@ -64,17 +64,14 @@ class Prefabs:
         match = _path_regex.match(path)
         return None if match is None else match.group(1)
 
-    def _collect_game_objects(self, prefabs: List[GameObject]) -> Dict[int, GameObject]:
-        objects = {}
+    def _collect_game_objects(self, prefabs: list[Environment]):
+        objects: dict[int, GameObject] = {}
         for prefab in prefabs:
-            # Используем m_Name вместо name
-            if hasattr(prefab, 'm_Name') and prefab.m_Name and prefab.m_Name != '':
-                objects[prefab.path_id] = prefab
-            # Рекурсивный обход дочерних объектов
-            if hasattr(prefab, 'm_Components'):
-                for component in prefab.m_Components:
-                    child_objects = self._collect_game_objects([component])
-                    objects.update(child_objects)
+            for path, obj in prefab.container.items():
+                if obj.type.name == 'GameObject' and self._match_container_path(path) is not None:
+                    data = typing.cast(GameObject, obj.read())
+                    if data.name is not None and data.name != '':
+                        objects[data.path_id] = data
         return objects
 
     @classmethod
