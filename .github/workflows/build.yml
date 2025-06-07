@@ -8,23 +8,22 @@ jobs:
   build:
     runs-on: self-hosted
     environment: production
-
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: 'recursive'
 
-      # Начальная настройка
-      - name: Initialize environment
+      - name: Configure system encoding
         run: |
-          [System.Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          [System.Console]::InputEncoding = [System.Text.Encoding]::UTF8
-          chcp 65001
-          echo "PYTHONIOENCODING=UTF-8" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-          echo "PYTHONUTF8=1" | Out-File -FilePath $env:GITHUB_ENV -Encoding utf8 -Append
-
-      # Установка системных зависимостей
-      - name: Install Windows dependencies
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          chcp 65001 | Out-Null
+          git config --global core.quotepath false
+          $env:PYTHONUTF8 = "1"
+          $env:LC_ALL = "C.UTF-8"
+      - name: Check Disk Space (Windows)
+        run: |
+          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+      - name: Install Windows Dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
           Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
@@ -34,164 +33,191 @@ jobs:
           magick --version
           git lfs version
           node --version
-
-      # Установка vgmstream
+      - name: Setup Git LFS
+        run: |
+          git lfs install
+          git lfs track "*.wav" "*.mp3" "*.png" "*.jpg" "*.webp" "*.zip"
+          git add .gitattributes
       - name: Install vgmstream
         run: |
           Invoke-WebRequest -Uri "https://github.com/vgmstream/vgmstream-releases/releases/download/nightly/vgmstream-win64.zip" -OutFile "vgmstream.zip"
           Expand-Archive -Path "vgmstream.zip" -DestinationPath "bin" -Force
           Remove-Item -Path "vgmstream.zip"
           echo "$PWD\bin" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
-
-      # Настройка PNPM с явным указанием версии
       - name: Setup PNPM
-        uses: pnpm/action-setup@v4
-        with:
-          version: 9.4.0
-          run_install: false
-
-      # Кэширование Python окружения
-      - name: Cache Python environment
-        uses: actions/cache@v3
-        id: cache-python
+        run: |
+          npm install -g pnpm
+          pnpm -v
+      - name: Restore Cached Resources
+        id: restore-gf-downloader-resources
+        uses: actions/cache/restore@v4
         with:
           path: |
-            .venv
-          key: python-env-${{ runner.os }}-${{ hashFiles('unpack/requirements.txt') }}
+            unpack/downloader/output
+          key: gf-downloader-resources-${{ runner.os }}
 
-      # Создание и активация виртуального окружения
-      - name: Setup Python environment
+      - name: Setup Python Environment
         run: |
-          if ("${{ steps.cache-python.outputs.cache-hit }}" -ne 'true') {
-            python -m venv .venv
-          }
-          .\.venv\Scripts\activate
-          pip install --upgrade pip wheel setuptools
-          pip install chardet==5.2.0 pyjson5==1.6.1
+          python -m pip install --upgrade pip
+          pip install pdm
           cd unpack
-          pip install -r requirements.txt
-          cd downloader
-          pip install -r requirements.txt
-          cd ../..
-          python -c "import chardet; print(f'chardet {chardet.__version__} installed')"
-
-      # Исправление ошибок импорта в коде
-      - name: Fix import issues in gfunpack
-        run: |
-          $utilsPath = "unpack/src/gfunpack/utils.py"
-          $utilsContent = Get-Content $utilsPath -Raw
-          if (-not $utilsContent.Contains("from pathlib import Path")) {
-            $utilsContent = "from pathlib import Path`n`n" + $utilsContent
-          }
-          $utilsContent = $utilsContent -replace 'data\.(name|asset_name)', 'data.assets_file'
-          Set-Content -Path $utilsPath -Value $utilsContent -Encoding UTF8
-          
-          $prefabsPath = "unpack/src/gfunpack/prefabs.py"
-          $prefabsContent = Get-Content $prefabsPath -Raw
-          if (-not $prefabsContent.Contains("from typing import List, Dict")) {
-            $prefabsContent = "from typing import List, Dict`n" + $prefabsContent
-          }
-          if (-not $prefabsContent.Contains("from .models import GameObject")) {
-            $prefabsContent = "from .models import GameObject`n" + $prefabsContent
-          }
-          Set-Content -Path $prefabsPath -Value $prefabsContent -Encoding UTF8
-
-      # Загрузка ресурсов
-      - name: Download resources
+          pdm config venv.in_project true
+          pdm install
+          .\.venv\Scripts\activate
+          pip install pyjson5
+          pip install -r downloader/requirements.txt
+      - name: Download Resources (if cache missed)
+        if: steps.restore-gf-downloader-resources.outputs.cache-hit != 'true'
         env:
           GD_DATA: ${{ secrets.GD_DATA }}
         run: |
-          .\.venv\Scripts\activate
           cd unpack/downloader
           if (!(Test-Path "config.json5")) {
-            Write-Error "File config.json5 not found!"
+            Write-Error "Файл config.json5 не найден!"
             exit 1
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
+      - name: Cache Downloaded Resources
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            unpack/downloader/output
+          key: ${{ steps.restore-gf-downloader-resources.outputs.cache-primary-key }}
+
+      # ===== ДОБАВЛЕННЫЕ ШАГИ ИЗ old_build.yml =====
+      - name: Restore Cached Images
+        id: restore-image-resources
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            unpack/images
+          key: gf-image-resources-${{ runner.os }}
 
       - name: Unpack images
         run: |
-          .\.venv\Scripts\Activate.ps1
           cd unpack
-          $env:PYTHONPATH = "$pwd\src" 
+          .\.venv\Scripts\activate
           python tests/test_backgrounds.py
           python tests/test_characters.py
-      - name: Cache Resources (images)
+      - name: Cache Images
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/images
           key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
-      - name: Restore Cached Resources (audio)
+
+      - name: Restore Cached Audio
         id: restore-audio-resources
         uses: actions/cache/restore@v4
         with:
           path: |
             unpack/audio
-          key: gf-audio-resources
+          key: gf-audio-resources-${{ runner.os }}
+
       - name: Unpack audio
         run: |
-          .\.venv\Scripts\Activate.ps1
           cd unpack
-          $env:PYTHONPATH = "$pwd\src" 
+          .\.venv\Scripts\activate
           python tests/test_audio.py
-      - name: Cache Resources (audio)
+      - name: Cache Audio
         uses: actions/cache/save@v4
         with:
           path: |
             unpack/audio
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
+
+      # ===== КОНЕЦ ДОБАВЛЕННЫХ ШАГОВ =====
+
       - name: Unpack resources
         run: |
-          .\.venv\Scripts\Activate.ps1
-          cd unpack
-          $env:PYTHONPATH = "$pwd\src" 
-          python -m gfunpack downloader/output -o .
-
-      # Перемещение ресурсов
-      - name: Move resources
-        run: |
+          # Устанавливаем UTF-8 для этого шага
+          $ErrorActionPreference = "Stop"
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          
           cd unpack
-          
-          New-Item -ItemType Directory -Path "../src/assets" -Force | Out-Null
-          New-Item -ItemType Directory -Path "../public" -Force | Out-Null
-          
-          $jsonFiles = @(
+          .\.venv\Scripts\activate
+          # Детальное логирование структуры перед распаковкой
+          Write-Host "=== File structure before unpacking ==="
+          Get-ChildItem -Recurse | Format-Table FullName -AutoSize
+          # Распаковка с подробным выводом
+          try {
+              python -m gfunpack downloader/output -o . 2>&1 | Tee-Object -FilePath "unpack.log"
+              if ($LASTEXITCODE -ne 0) {
+                  throw "Unpack failed with exit code $LASTEXITCODE"
+              }
+          } catch {
+              Get-Content "unpack.log" | ForEach-Object { Write-Host $_ }
+              Write-Host "::error::Resource unpacking failed"
+              exit 1
+          }
+          # Проверка созданных файлов
+          $requiredFiles = @(
               "audio/audio.json",
               "images/backgrounds.json",
               "images/characters.json",
               "stories/stories.json",
               "stories/chapters.json"
           )
-          foreach ($file in $jsonFiles) {
-              if (Test-Path $file) {
-                  Copy-Item $file "../src/assets" -Force
+          foreach ($file in $requiredFiles) {
+              if (-not (Test-Path $file)) {
+                  Write-Host "::warning file=$file::File $file not found"
+              } else {
+                  Write-Host "Found file: $file"
               }
           }
-          
+      # Шаг перемещения ресурсов с правильным синтаксисом
+      - name: Move resources
+        run: |
+          [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+          cd unpack
+          # Создаем директории
+          New-Item -ItemType Directory -Path "../src/assets" -Force | Out-Null
+          New-Item -ItemType Directory -Path "../public" -Force | Out-Null
+          # Функция для безопасного копирования
+          function Safe-Copy-File {
+              param($source, $dest)
+              if (Test-Path $source) {
+                  Copy-Item $source $dest -Force
+                  Write-Host "Copied: $source -> $dest"
+                  return $true
+              }
+              Write-Host "::warning::File not found: $source"
+              return $false
+          }
+          # Копируем JSON файлы
+          $copiedFiles = @(
+              @{source="audio/audio.json"; dest="../src/assets"},
+              @{source="images/backgrounds.json"; dest="../src/assets"},
+              @{source="images/characters.json"; dest="../src/assets"},
+              @{source="stories/stories.json"; dest="../src/assets"},
+              @{source="stories/chapters.json"; dest="../src/assets"}
+          )
+          $anyCopied = $false
+          foreach ($file in $copiedFiles) {
+              if (Safe-Copy-File $file.source $file.dest) {
+                  $anyCopied = $true
+              }
+          }
+          if (-not $anyCopied) {
+              Write-Host "::error::No JSON files were copied!"
+              exit 1
+          }
+          # Перемещаем папки
           $folders = @("audio", "images", "stories")
           foreach ($folder in $folders) {
               if (Test-Path $folder) {
                   Move-Item $folder "../public" -Force
+                  Write-Host "Moved folder: $folder"
+              } else {
+                  Write-Host "::warning::Folder not found: $folder"
               }
           }
-
-      # Установка зависимостей Node.js
-      - name: Install Node.js dependencies
-        run: |
-          pnpm install --frozen-lockfile
-
-      # Сборка сайта
       - name: Build site
         run: |
-          # Проверка файлов
+          # Проверяем наличие необходимых файлов
           $requiredAssets = @(
               "src/assets/audio.json",
-              "src/assets/backgrounds.json",
-              "src/assets/characters.json",
-              "src/assets/stories.json",
-              "src/assets/chapters.json"
+              "src/assets/backgrounds.json"
           )
           foreach ($file in $requiredAssets) {
               if (-not (Test-Path $file)) {
@@ -199,11 +225,10 @@ jobs:
                   exit 1
               }
           }
-          
+          # Сборка
+          pnpm install --frozen-lockfile
           pnpm build-index
           pnpm build
-
-      # Публикация
       - name: Publish to Cloudflare Pages
         uses: cloudflare/pages-action@v1
         with:
