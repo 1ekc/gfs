@@ -109,126 +109,41 @@ jobs:
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
-      # Проверка и использование gf-data-rus при необходимости (ИСПРАВЛЕННЫЙ ШАГ)
-      - name: Check and use gf-data-rus if needed
+      - name: Unpack images
         run: |
-          .\.venv\Scripts\activate
           cd unpack
-
-          # Проверяем основные файлы
-          $requiredFiles = @(
-              "downloader/output/asset_textes.ab",
-              "downloader/output/asset_avg.ab",
-              "downloader/output/asset_stories.ab"
-          )
-
-          $useFallback = $false
-          foreach ($file in $requiredFiles) {
-              if (-not (Test-Path $file)) {
-                  Write-Host "File $file not found, will use gf-data-rus folder"
-                  $useFallback = $true
-                  break
-              }
-          }
-
-          # Если основные файлы есть, проверяем наличие конкретных ассетов
-          if (-not $useFallback) {
-              $requiredAssets = @(
-                  "assets/resources/textdata/audiotemplate.txt",
-                  "assets/resources/dabao/avgtxt/profiles.txt"
-              )
-              
-              foreach ($asset in $requiredAssets) {
-                  $found = Test-AssetFile "downloader/output/asset_textes.ab" $asset
-                  if (-not $found) {
-                      Write-Host "Asset $asset not found, will use gf-data-rus folder"
-                      $useFallback = $true
-                      break
-                  }
-              }
-          }
-
-          # Если нужно использовать fallback
-          if ($useFallback) {
-              if (Test-Path "gf-data-rus") {
-                  Write-Host "Copying files from gf-data-rus..."
-                  Get-ChildItem -Path "gf-data-rus" -Recurse | ForEach-Object {
-                      $relativePath = $_.FullName.Substring((Resolve-Path "gf-data-rus").Path.Length + 1)
-                      $dest = Join-Path "downloader/output" $relativePath
-                      $destDir = Split-Path -Path $dest -Parent
-                      if (-not (Test-Path $destDir)) {
-                          New-Item -ItemType Directory -Path $destDir -Force | Out-Null
-                      }
-                      Copy-Item -Path $_.FullName -Destination $dest -Force
-                  }
-              } else {
-                  Write-Host "::error::Folder gf-data-rus not found!"
-                  exit 1
-              }
-          }
-
-      # Обработка ресурсов
-# Улучшенный шаг: Process assets
-      - name: Process assets
+          source .venv/bin/activate
+          python tests/test_backgrounds.py
+          python tests/test_characters.py
+      - name: Cache Resources (images)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            unpack/images
+          key: ${{ steps.restore-image-resources.outputs.cache-primary-key }}
+      - name: Restore Cached Resources (audio)
+        id: restore-audio-resources
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            unpack/audio
+          key: gf-audio-resources
+      - name: Unpack audio
         run: |
-          .\.venv\Scripts\activate
           cd unpack
-          $env:PYTHONPATH = "$pwd\src"
-          
-          # Проверка с выводом точных путей
-          $missing = @()
-          $requiredFiles = @(
-              "downloader/output/asset_textes.ab",
-              "downloader/output/asset_avg.ab"
-          )
-          foreach ($file in $requiredFiles) {
-              if (-not (Test-Path $file)) {
-                  $missing += $file
-              }
-          }
-          
-          if ($missing.Count -gt 0) {
-              Write-Host "::error::Missing required files:"
-              $missing | ForEach-Object { Write-Host "  - $_" }
-              exit 1
-          }
-          
-          # Запуск тестов с обработкой ошибок
-          $testScripts = @(
-              "tests/test_backgrounds.py",
-              "tests/test_characters.py",
-              "tests/test_audio.py"
-          )
-          
-          foreach ($script in $testScripts) {
-              python $script
-              if ($LASTEXITCODE -ne 0) {
-                  Write-Host "::error::Test failed: $script"
-                  exit $LASTEXITCODE
-              }
-          }
-
-      # Распаковка ресурсов
+          source .venv/bin/activate
+          python tests/test_audio.py
+      - name: Cache Resources (audio)
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            unpack/audio
+          key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
       - name: Unpack resources
         run: |
-          $ErrorActionPreference = "Stop"
-          .\.venv\Scripts\activate
           cd unpack
+          source .venv/bin/activate
           python -m gfunpack downloader/output -o .
-          
-          # Проверка созданных файлов
-          $requiredFiles = @(
-              "audio/audio.json",
-              "images/backgrounds.json",
-              "images/characters.json",
-              "stories/stories.json",
-              "stories/chapters.json"
-          )
-          foreach ($file in $requiredFiles) {
-              if (-not (Test-Path $file)) {
-                  Write-Host "::warning file=$file::File $file not found"
-              }
-          }
 
       # Перемещение ресурсов
       - name: Move resources
