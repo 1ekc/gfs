@@ -168,27 +168,45 @@ jobs:
           }
 
       # Обработка ресурсов
+# Улучшенный шаг: Process assets
       - name: Process assets
         run: |
           .\.venv\Scripts\activate
           cd unpack
           $env:PYTHONPATH = "$pwd\src"
           
-          # Проверяем наличие файлов перед обработкой
+          # Проверка с выводом точных путей
+          $missing = @()
           $requiredFiles = @(
               "downloader/output/asset_textes.ab",
               "downloader/output/asset_avg.ab"
           )
           foreach ($file in $requiredFiles) {
               if (-not (Test-Path $file)) {
-                  Write-Host "::error file=$file::Required file missing"
-                  exit 1
+                  $missing += $file
               }
           }
           
-          python tests/test_backgrounds.py
-          python tests/test_characters.py
-          python tests/test_audio.py
+          if ($missing.Count -gt 0) {
+              Write-Host "::error::Missing required files:"
+              $missing | ForEach-Object { Write-Host "  - $_" }
+              exit 1
+          }
+          
+          # Запуск тестов с обработкой ошибок
+          $testScripts = @(
+              "tests/test_backgrounds.py",
+              "tests/test_characters.py",
+              "tests/test_audio.py"
+          )
+          
+          foreach ($script in $testScripts) {
+              python $script
+              if ($LASTEXITCODE -ne 0) {
+                  Write-Host "::error::Test failed: $script"
+                  exit $LASTEXITCODE
+              }
+          }
 
       # Распаковка ресурсов
       - name: Unpack resources
