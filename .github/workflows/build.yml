@@ -115,29 +115,6 @@ jobs:
           .\.venv\Scripts\activate
           cd unpack
 
-          # Функция для проверки существования файла в .ab архиве
-          function Test-AssetFile {
-            param($assetPath, $assetName)
-            $testScript = @"
-from gfunpack.utils import AssetManager
-from pathlib import Path
-try:
-    manager = AssetManager(Path('$assetPath'))
-    manager.load_assets()
-    for data in manager.assets.values():
-        if hasattr(data, 'assets_file') and data.assets_file == '$assetName':
-            print('FOUND')
-            exit(0)
-    print('NOT_FOUND')
-except Exception as e:
-    print(f'ERROR: {e}')
-    exit(1)
-"@
-            $testScript | Out-File -FilePath "test_asset.py" -Encoding UTF8
-            $result = python test_asset.py
-            return $result -eq 'FOUND'
-          }
-
           # Проверяем основные файлы
           $requiredFiles = @(
               "downloader/output/asset_textes.ab",
