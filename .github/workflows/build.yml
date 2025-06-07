@@ -118,10 +118,10 @@ jobs:
           try {
               python tests/test_backgrounds.py
               if ($LASTEXITCODE -ne 0) { throw "Backgrounds test failed" }
-              
+
               python tests/test_characters.py
               if ($LASTEXITCODE -ne 0) { throw "Characters test failed" }
-              
+
               # Проверка созданных файлов
               $requiredImageFiles = @("images/backgrounds.json", "images/characters.json")
               foreach ($file in $requiredImageFiles) {
@@ -193,10 +193,10 @@ jobs:
           $ErrorActionPreference = "Stop"
           cd unpack
           .\.venv\Scripts\activate
-          
+
           try {
               python -m gfunpack downloader/output -o .
-              
+
               # Проверка основных выходных файлов
               $requiredFiles = @(
                   "stories/stories.json",
@@ -204,12 +204,12 @@ jobs:
                   "images/characters.json",
                   "images/backgrounds.json"
               )
-              
+
               $missingFiles = $requiredFiles | Where-Object { -not (Test-Path $_) }
               if ($missingFiles.Count -gt 0) {
                   Write-Host "::warning::Missing output files: $($missingFiles -join ', ')"
               }
-              
+
               # Дополнительная проверка для аудио (если обрабатывалось)
               if (Test-Path "downloader/output/asset_audio.ab") {
                   if (-not (Test-Path "audio/audio.json")) {
