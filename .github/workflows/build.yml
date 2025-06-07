@@ -111,8 +111,8 @@ jobs:
 
       - name: Unpack images
         run: |
-          cd unpack
           .\.venv\Scripts\Activate.ps1
+          cd unpack
           $env:PYTHONPATH = "$pwd\src" 
           python tests/test_backgrounds.py
           python tests/test_characters.py
@@ -131,8 +131,8 @@ jobs:
           key: gf-audio-resources
       - name: Unpack audio
         run: |
-          cd unpack
           .\.venv\Scripts\Activate.ps1
+          cd unpack
           $env:PYTHONPATH = "$pwd\src" 
           python tests/test_audio.py
       - name: Cache Resources (audio)
@@ -143,8 +143,8 @@ jobs:
           key: ${{ steps.restore-audio-resources.outputs.cache-primary-key }}
       - name: Unpack resources
         run: |
-          cd unpack
           .\.venv\Scripts\Activate.ps1
+          cd unpack
           $env:PYTHONPATH = "$pwd\src" 
           python -m gfunpack downloader/output -o .
 
