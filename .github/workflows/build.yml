@@ -104,12 +104,12 @@ jobs:
           .\.venv\Scripts\activate
           cd unpack/downloader
           if (!(Test-Path "config.json5")) {
-            Write-Error "Файл config.json5 не найден!"
+            Write-Error "File config.json5 not found!"
             exit 1
           }
           python downloader.py --folder-id "1YPAEYsvjs8UjMLNogu_VtUIWW0rr4-Ls"
 
-      # Проверка и использование gf-data-rus при необходимости
+      # Проверка и использование gf-data-rus при необходимости (ИСПРАВЛЕННЫЙ ШАГ)
       - name: Check and use gf-data-rus if needed
         run: |
           .\.venv\Scripts\activate
@@ -119,20 +119,20 @@ jobs:
           function Test-AssetFile {
             param($assetPath, $assetName)
             $testScript = @"
-          from gfunpack.utils import AssetManager
-          from pathlib import Path
-          try:
-              manager = AssetManager(Path('$assetPath'))
-              manager.load_assets()
-              for data in manager.assets.values():
-                  if hasattr(data, 'assets_file') and data.assets_file == '$assetName':
-                      print('FOUND')
-                      exit(0)
-              print('NOT_FOUND')
-          except Exception as e:
-              print(f'ERROR: {e}')
-              exit(1)
-          "@
+from gfunpack.utils import AssetManager
+from pathlib import Path
+try:
+    manager = AssetManager(Path('$assetPath'))
+    manager.load_assets()
+    for data in manager.assets.values():
+        if hasattr(data, 'assets_file') and data.assets_file == '$assetName':
+            print('FOUND')
+            exit(0)
+    print('NOT_FOUND')
+except Exception as e:
+    print(f'ERROR: {e}')
+    exit(1)
+"@
             $testScript | Out-File -FilePath "test_asset.py" -Encoding UTF8
             $result = python test_asset.py
             return $result -eq 'FOUND'
@@ -148,7 +148,7 @@ jobs:
           $useFallback = $false
           foreach ($file in $requiredFiles) {
               if (-not (Test-Path $file)) {
-                  Write-Host "Файл $file не найден, будет использована папка gf-data-rus"
+                  Write-Host "File $file not found, will use gf-data-rus folder"
                   $useFallback = $true
                   break
               }
@@ -164,7 +164,7 @@ jobs:
               foreach ($asset in $requiredAssets) {
                   $found = Test-AssetFile "downloader/output/asset_textes.ab" $asset
                   if (-not $found) {
-                      Write-Host "Ассет $asset не найден, будет использована папка gf-data-rus"
+                      Write-Host "Asset $asset not found, will use gf-data-rus folder"
                       $useFallback = $true
                       break
                   }
@@ -174,7 +174,7 @@ jobs:
           # Если нужно использовать fallback
           if ($useFallback) {
               if (Test-Path "gf-data-rus") {
-                  Write-Host "Копирование файлов из gf-data-rus..."
+                  Write-Host "Copying files from gf-data-rus..."
                   Get-ChildItem -Path "gf-data-rus" -Recurse | ForEach-Object {
                       $relativePath = $_.FullName.Substring((Resolve-Path "gf-data-rus").Path.Length + 1)
                       $dest = Join-Path "downloader/output" $relativePath
@@ -185,7 +185,7 @@ jobs:
                       Copy-Item -Path $_.FullName -Destination $dest -Force
                   }
               } else {
-                  Write-Host "::error::Папка gf-data-rus не найдена!"
+                  Write-Host "::error::Folder gf-data-rus not found!"
                   exit 1
               }
           }
