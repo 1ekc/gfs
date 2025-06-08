@@ -38,6 +38,7 @@ class BackgroundCollection:
 
     def __init__(self, directory: str, destination: str, pngquant: bool = False, force: bool = False, concurrency: int = 8) -> None:
         self.directory = utils.check_directory(directory)
+        # Основная директория для фонов
         self.destination = utils.check_directory(pathlib.Path(destination).joinpath('background'), create=True)
         self.pngquant = utils.test_pngquant(pngquant)
         self.force = force
@@ -118,11 +119,11 @@ class BackgroundCollection:
             ensure_ascii=False,
             indent=2,
         )
-        # Создаем директорию images, если её нет
-        images_dir = self.destination.parent.joinpath('images')
+        # Сохраняем напрямую в корневую images директорию
+        images_dir = pathlib.Path('images')
         images_dir.mkdir(exist_ok=True)
 
-        # Сохраняем напрямую в images/backgrounds.json
+        # Сохраняем в images/backgrounds.json (без вложенных папок)
         path = images_dir.joinpath('backgrounds.json')
         with path.open('w', encoding='utf-8') as f:
             f.write(s)
