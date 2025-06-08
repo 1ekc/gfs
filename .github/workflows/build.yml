@@ -130,26 +130,23 @@ jobs:
 
       - name: Unpack resources
         run: |
-          # Устанавливаем UTF-8 для этого шага
           $ErrorActionPreference = "Stop"
           [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
-          
+
           cd unpack
           .\.venv\Scripts\activate
-          # Детальное логирование структуры перед распаковкой
-          Write-Host "=== File structure before unpacking ==="
-          Get-ChildItem -Recurse | Format-Table FullName -AutoSize
-          # Распаковка с подробным выводом
+
+          # Распаковка с обработкой ошибок (без логирования в файл)
           try {
-              python -m gfunpack downloader/output -o . 2>&1 | Tee-Object -FilePath "unpack.log"
+              python -m gfunpack downloader/output -o .
               if ($LASTEXITCODE -ne 0) {
                   throw "Unpack failed with exit code $LASTEXITCODE"
               }
           } catch {
-              Get-Content "unpack.log" | ForEach-Object { Write-Host $_ }
-              Write-Host "::error::Resource unpacking failed"
+              Write-Host "::error::Resource unpacking failed: $_"
               exit 1
           }
+
           # Проверка созданных файлов
           $requiredFiles = @(
               "audio/audio.json",
