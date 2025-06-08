@@ -1,38 +1,18 @@
+# -*- coding: utf-8 -*-
 import dataclasses
 import pathlib
 import shutil
 import subprocess
 import typing
 from urllib import request
-import builtins
 
-# --- Глобальная обработка кодировок ---
-_original_str = builtins.str
 
-def safe_str(s, *args, **kwargs):
-    """Автоматически исправляет кодировку строк."""
-    if isinstance(s, bytes):
-        try:
-            return _original_str(s, 'utf-8', *args, **kwargs)
-        except UnicodeError:
-            try:
-                return _original_str(s, 'gb18030', *args, **kwargs)
-            except UnicodeError:
-                try:
-                    return _original_str(s, 'gbk', *args, **kwargs)
-                except UnicodeError:
-                    return _original_str(s, 'latin1', *args, **kwargs)
-    return _original_str(s, *args, **kwargs)
-
-# Переопределяем стандартный str
-builtins.str = safe_str
-
-# --- Остальной код остается без изменений ---
 @dataclasses.dataclass
 class Story:
     name: str
     description: str
     files: list[str | tuple[str, str]]
+
 
 @dataclasses.dataclass
 class Chapter:
@@ -41,12 +21,28 @@ class Chapter:
     stories: list[Story]
 
 
+def safe_str(s):
+    """Функция для исправления проблем с кодировкой строк"""
+    if isinstance(s, bytes):
+        try:
+            return s.decode('utf-8')
+        except UnicodeError:
+            try:
+                return s.decode('gb18030')
+            except UnicodeError:
+                try:
+                    return s.decode('gbk')
+                except UnicodeError:
+                    return s.decode('latin1', errors='replace')
+    return s
+
+
 def _chapter_starting():
     return Chapter(
         name='Стартовый эпизод',
         description='Автзапуск, при первом входе в игру',
         stories=[
-            Story(name=f'Часть {i + 1}', description='',
+            Story(name=f'第 {i + 1} 节', description='',
                   files=[f'startavg/start{i}.txt'])
             for i in range(11 + 1)
         ],
@@ -214,7 +210,8 @@ _extra_chapters: list[tuple[str, str, str, list]] = [
     ('-61', 'C.E. 2023 Гражданский поход', '2023', []),
     ('-62', 'C.E. 2023 Лицензия! Вторичная загрузка', '2023', []),
 
-    ('-8', 'Операция "Охота на кролика"', '《Мимеограф Асуки (серия видеоигр)》x《Греховная шестерня》Содержание ссылки', []),
+    ('-8', 'Операция "Охота на кролика"', '《Мимеограф Асуки (серия видеоигр)》x《Греховная шестерка》Содержание ссылки',
+     []),
     ('-14,-15', 'Индивидуальный практик', '《Академия Кракдаун》Содержание ссылки', []),
     ('-19,-20,-22', 'Дни Славы', '《DJMAX RESPECT》Содержание ссылки', []),
     ('-32', 'Вальгалла', '《VA-11 HALL-A》Содержание ссылки', _extra_stories_va11()),
@@ -262,6 +259,7 @@ def get_recorded_chapters():
                                   for f in story.files)
     return chapters, id_mapping, recorded_files
 
+
 _attached_stories_motor_race = [
     '-31-3c3-1.txt',
     'battleavg/-31-specialbattletips-1.txt',
@@ -275,78 +273,81 @@ _attached_stories_motor_race = [
     'battleavg/-31-specialbattletips-victory.txt',
 ]
 _attached_stories: list[tuple[str, str, str]] = [
-    ('0-2-1.txt', '0-2-3round2.txt'),
-    ('-2-1-1.txt', '-2-1-4-point2207.txt'),
+                                                    ('0-2-1.txt', '0-2-3round2.txt'),
+                                                    ('-2-1-1.txt', '-2-1-4-point2207.txt'),
 
-    # Жареная любовь, белое торжество Описание
-    ('-50-1-4.txt', '-50-3-1.txt', 'Неправильный шоколад'),
-    ('-50-3-1.txt', '-50-3-2.txt', 'Льюис'),
-    ('-50-3-2.txt', '-50-3-3.txt', 'Соколы'),
-    ('-50-3-3.txt', '-50-3-4.txt', '79 стиль'),
-    ('-50-3-4.txt', '-50-3-5.txt', '97 стиль'),
-    ('-50-3-5.txt', '-50-3-6.txt', 'Охотник'),
-    ('-50-3-6.txt', '-50-3-7.txt', 'LWMMG'),
-    ('-50-3-7.txt', '-50-3-8.txt', 'K5'),
-    ('-50-3-8.txt', '-50-3-9.txt', 'Гарланд'),
-    ('-50-3-9.txt', '-50-3-10.txt', 'P22'),
-    ('-50-3-10.txt', '-50-3-11.txt', 'T77'),
-    ('-50-3-11.txt', '-50-3-12.txt', 'Блез Паскаль'),
-    # Запеченная любовь, маленький монстр
-    ('-50-1-4.txt', '-50-ext-1-4-1.txt', 'Десерт "Волшебные муравьи"'),
-    ('-50-ext-1-4-1.txt', '-50-ext-1-4-2.txt', 'Собачьи закуски Судного дня'),
-    ('-50-ext-1-4-2.txt', '-50-ext-1-4-3.txt', 'Калорийная бомба（шоколадные конфеты）'),
-    ('-50-ext-1-4-3.txt', '-50-ext-1-4-4.txt', 'Калорийная бомба（Чосулу）'),
-    ('-50-ext-1-4-4.txt', '-50-ext-1-4-5.txt', 'Какао Новый мир'),
-    ('-50-ext-1-4-5.txt', '-50-ext-1-4-6.txt', 'Чосулу'),
-    #Пекарня, любовь, шоколад
-    ('-50-1-3.txt', '-50-ext-1-3-2.txt', 'Лист с рецептами'),
-    ('-50-ext-1-3-2.txt', '-50-ext-1-3.txt', 'Лист с рецептами？'),
-    ('-50-ext-1-3.txt', '-50-ext-0-1.txt', 'Семья Минт'),
-    ('-50-ext-0-1.txt', '-50-ext-0-2.txt', 'Сладкая сабля'),
-    ('-50-ext-0-2.txt', '-50-ext-0-3.txt', 'Поцелуй судьбы'),
-    ('-50-ext-0-3.txt', '-50-ext-0-4.txt', 'Шоколадный дуэт'),
-    ('-50-ext-0-4.txt', '-50-ext-0-5.txt', 'Классическая память'),
-    ('-50-ext-0-5.txt', '-50-ext-0-6.txt', 'Какао Новый мир'),
-    ('-50-ext-0-6.txt', '-50-ext-0-7.txt', 'Чосулу'),
+                                                    # Жареная любовь, белое торжество Описание
+                                                    ('-50-1-4.txt', '-50-3-1.txt', 'Неправильный шоколад'),
+                                                    ('-50-3-1.txt', '-50-3-2.txt', 'Льюис'),
+                                                    ('-50-3-2.txt', '-50-3-3.txt', 'Соколы'),
+                                                    ('-50-3-3.txt', '-50-3-4.txt', '79 стиль'),
+                                                    ('-50-3-4.txt', '-50-3-5.txt', '97 стиль'),
+                                                    ('-50-3-5.txt', '-50-3-6.txt', 'Охотник'),
+                                                    ('-50-3-6.txt', '-50-3-7.txt', 'LWMMG'),
+                                                    ('-50-3-7.txt', '-50-3-8.txt', 'K5'),
+                                                    ('-50-3-8.txt', '-50-3-9.txt', 'Гарланд'),
+                                                    ('-50-3-9.txt', '-50-3-10.txt', 'P22'),
+                                                    ('-50-3-10.txt', '-50-3-11.txt', 'T77'),
+                                                    ('-50-3-11.txt', '-50-3-12.txt', 'Блез Паскаль'),
+                                                    # Запеченная любовь, маленький монстр
+                                                    ('-50-1-4.txt', '-50-ext-1-4-1.txt', 'Десерт "Волшебные муравьи"'),
+                                                    ('-50-ext-1-4-1.txt', '-50-ext-1-4-2.txt',
+                                                     'Собачьи закуски Судного дня'),
+                                                    ('-50-ext-1-4-2.txt', '-50-ext-1-4-3.txt',
+                                                     'Калорийная бомба（шоколадные конфеты）'),
+                                                    ('-50-ext-1-4-3.txt', '-50-ext-1-4-4.txt',
+                                                     'Калорийная бомба（Чосулу）'),
+                                                    ('-50-ext-1-4-4.txt', '-50-ext-1-4-5.txt', 'Какао Новый мир'),
+                                                    ('-50-ext-1-4-5.txt', '-50-ext-1-4-6.txt', 'Чосулу'),
+                                                    # Пекарня, любовь, шоколад
+                                                    ('-50-1-3.txt', '-50-ext-1-3-2.txt', 'Лист с рецептами'),
+                                                    ('-50-ext-1-3-2.txt', '-50-ext-1-3.txt', 'Лист с рецептами？'),
+                                                    ('-50-ext-1-3.txt', '-50-ext-0-1.txt', 'Семья Минт'),
+                                                    ('-50-ext-0-1.txt', '-50-ext-0-2.txt', 'Сладкая сабля'),
+                                                    ('-50-ext-0-2.txt', '-50-ext-0-3.txt', 'Поцелуй судьбы'),
+                                                    ('-50-ext-0-3.txt', '-50-ext-0-4.txt', 'Шоколадный дуэт'),
+                                                    ('-50-ext-0-4.txt', '-50-ext-0-5.txt', 'Классическая память'),
+                                                    ('-50-ext-0-5.txt', '-50-ext-0-6.txt', 'Какао Новый мир'),
+                                                    ('-50-ext-0-6.txt', '-50-ext-0-7.txt', 'Чосулу'),
 
-    # Убежище Рикан
-    ('-52-1-1.txt', 'battleavg/-52-dxg.txt', 'Бить арбузы'),
+                                                    # Убежище Рикан
+                                                    ('-52-1-1.txt', 'battleavg/-52-dxg.txt', 'Бить арбузы'),
 
-    # Правило слепого сплита: кажется, что это должна быть вторая еженедельная смена цели?
-    ('-7-1-3round1.txt', '-7-1-3round2.txt', 'Пункт2.5'),
-    ('-7-2-3round1.txt', '-7-2-3round2.txt', 'Пункт.5'),
-    ('-7-3-3round1.txt', '-7-3-3round2.txt', 'Пункт.5'),
-    ('-7-4-3round1.txt', '-7-4-3round2.txt', 'Пункт.5'),
+                                                    # Правило слепого сплита: кажется, что это должна быть вторая еженедельная смена цели?
+                                                    ('-7-1-3round1.txt', '-7-1-3round2.txt', 'Пункт2.5'),
+                                                    ('-7-2-3round1.txt', '-7-2-3round2.txt', 'Пункт.5'),
+                                                    ('-7-3-3round1.txt', '-7-3-3round2.txt', 'Пункт.5'),
+                                                    ('-7-4-3round1.txt', '-7-4-3round2.txt', 'Пункт.5'),
 
-    # Упорядоченная турбулентность
-    ('-24-2-1.txt', '-24-2-2.txt'),
-    ('-24-3-2first.txt', '-24-3-2.txt'),
-    ('-24-4-2first.txt', '-24-4-2.txt'),
-    ('-24-6-1.txt', '-24-6-2.txt'),
-    ('-24-7-2first.txt', '-24-7-2.txt'),
-    ('-24-8-2first.txt', '-24-8-2.txt'),
-    ('-24-9-2first.txt', '-24-9-2.txt'),
-    ('-24-10-2first.txt', '-24-10-2.txt'),
-    ('-24-11-2first.txt', '-24-11-2.txt'),
-    ('-24-12-2first.txt', '-24-12-2.txt'),
-    ('-24-13-2first.txt', '-24-13-2.txt'),
-    ('-24-14-2first.txt', '-24-14-2.txt'),
-    ('-24-15-1.txt', '-24-15-2first.txt'),
-    ('-24-15-2first.txt', '-24-15-2.txt'),
+                                                    # Упорядоченная турбулентность
+                                                    ('-24-2-1.txt', '-24-2-2.txt'),
+                                                    ('-24-3-2first.txt', '-24-3-2.txt'),
+                                                    ('-24-4-2first.txt', '-24-4-2.txt'),
+                                                    ('-24-6-1.txt', '-24-6-2.txt'),
+                                                    ('-24-7-2first.txt', '-24-7-2.txt'),
+                                                    ('-24-8-2first.txt', '-24-8-2.txt'),
+                                                    ('-24-9-2first.txt', '-24-9-2.txt'),
+                                                    ('-24-10-2first.txt', '-24-10-2.txt'),
+                                                    ('-24-11-2first.txt', '-24-11-2.txt'),
+                                                    ('-24-12-2first.txt', '-24-12-2.txt'),
+                                                    ('-24-13-2first.txt', '-24-13-2.txt'),
+                                                    ('-24-14-2first.txt', '-24-14-2.txt'),
+                                                    ('-24-15-1.txt', '-24-15-2first.txt'),
+                                                    ('-24-15-2first.txt', '-24-15-2.txt'),
 
-    # Ссылки на деление
-    # ('-33-59-4-point13290.txt', '-33-59-4-point80174.txt'), # Одинаковые события в обеих точках
-    ('-33-59-4-point13290.txt', 'battleavg/-33-24-1first.txt'),
+                                                    # Ссылки на деление
+                                                    # ('-33-59-4-point13290.txt', '-33-59-4-point80174.txt'), # Одинаковые события в обеих точках
+                                                    ('-33-59-4-point13290.txt', 'battleavg/-33-24-1first.txt'),
 
-    # Поляризованный свет
-    ('-36-5-ex.txt', 'battleavg/-36-specialbattletips.txt'),
-] + [ # Настольная игра "Гетеродинные гонки" Эпизоды
-    (prev, after)
-    for prev, after in zip(
+                                                    # Поляризованный свет
+                                                    ('-36-5-ex.txt', 'battleavg/-36-specialbattletips.txt'),
+                                                ] + [  # Настольная игра "Гетеродинные гонки" Эпизоды
+                                                    (prev, after)
+                                                    for prev, after in zip(
         _attached_stories_motor_race[:-1],
         _attached_stories_motor_race[1:],
     )
-]
+                                                ]
 _attached_events: list[tuple[str, Story]] = [
     # Звено деления: всепоглощающее море цветов-борьба
     ('-33-42-1first.txt', Story(
@@ -498,7 +499,6 @@ _attached_events: list[tuple[str, Story]] = [
     )),
 ]
 
-
 _extra_chapter_mapping = {
     '-27': '-24',  # Упорядоченная турбулентность: спасение от урагана
     '-45': '-24',  # Ураганное спасение # Возрождение
@@ -510,17 +510,24 @@ def add_extra_chapter_mappings(id_mapping: dict[str, int]):
     for extra, mapping in _extra_chapter_mapping.items():
         id_mapping[extra] = id_mapping[mapping]
 
+
 _manual_processed = set().union(
 )
+
+
 def is_manual_processed(file: str):
     return file in _manual_processed
+
+
 def manually_process(chapters: dict[int, Chapter], id_mapping: dict[str, int], mapped_files: set[str]):
+    # Сага
     c = chapters[id_mapping['-57']]
     specials = {
         'Источник вишни': ['Lержаться подальше！', '吉光片羽', '樱之蕊'],
         'Благоприятный свет и несколько мимолетных мгновений': ['Riot Radio！', 'Воспоминания！', 'Подарок на выпускной'],
         'Мидзуно Аи': ['Дождливый двор', 'Лунная коса', '闪耀之爱'],
-        'Коно Дзюнко': ['Мнимые гости в чужой стране', 'Когда начала светить луна?', 'Насколько хватает глаз из-за туманных волн, с другой стороны - запад и восток'],
+        'Коно Дзюнко': ['Мнимые гости в чужой стране', 'Когда начала светить луна?',
+                        'Насколько хватает глаз из-за туманных волн, с другой стороны - запад и восток'],
         'Югири': ['Путешественник во времени', 'Звуки моря', 'Пока солнце не сядет'],
         'Лили Хошикава': ['Прекрасный незнакомец', 'Оперативник Kingsman', 'Проходит много времени'],
         'Таэ Ямада': ['Чудесное ночное путешествие', 'Даритель', '“Пожалуйста, не уходите.”'],
@@ -538,32 +545,49 @@ def manually_process(chapters: dict[int, Chapter], id_mapping: dict[str, int], m
         'Вдохновение!Родники! ',
     ]
     files: dict[str, str] = {}
-    names = set(n for ns in specials.values() for n in ns)
+
+    # Применяем safe_str ко всем именам в specials
+    normalized_specials = {}
+    for character, story_names in specials.items():
+        normalized_character = safe_str(character)
+        normalized_names = [safe_str(name) for name in story_names]
+        normalized_specials[normalized_character] = normalized_names
+
+    names = set(n for ns in normalized_specials.values() for n in ns)
+
+    # Применяем safe_str к именам в c.stories
     for s in c.stories:
-        if s.name in names:
+        normalized_name = safe_str(s.name)
+        if normalized_name in names:
             assert len(s.files) == 1
             file = s.files[0]
             assert isinstance(file, str)
-            files[s.name] = file
-    c.stories = [s for s in c.stories if s.name not in names]
+            files[normalized_name] = file
+
+    # Фильтруем истории
+    c.stories = [s for s in c.stories if safe_str(s.name) not in names]
+
+    # Обрабатываем концовки
     for s in c.stories:
-        if s.name in endings:
+        normalized_name = safe_str(s.name)
+        if normalized_name in endings:
             s.description = f'结局 {endings.index(s.name) + 1}'
-    for character, stories in specials.items():
+
+    # Добавляем специальные истории
+    for character, stories in normalized_specials.items():
+        file_list = []
+        for name in stories:
+            if name in files:
+                file_list.append((files[name], name))
+            else:
+                # Логируем отсутствующие файлы
+                print(f"Warning: Missing file for {name} in character {character}")
+
         c.stories.append(Story(
             name=character,
             description='剧情',
-            files=[(files[name], name) for name in stories if name in files],
+            files=file_list,
         ))
-
-def manual_naming(story: Story, campaign: int):
-    if campaign == -43:  # Что-то не так с именованием Темного прилива.
-        story.name, story.description = story.description, story.name
-        if story.description == 'Время, когда человек разрушает кокон':  # Это -42 Butterfly Shadow in the Cocoon's introduction. Я думаю, что он был скопирован неправильно.
-            story.description = ''
-    if campaign == -38:  # Драма во сне, есть проблема
-        story.name = story.description
-        story.description = ''
 
 
 def _index_of_file(story: Story, file: str):
@@ -656,14 +680,15 @@ def get_block_list():
             '-38-ex-point91829.txt',
             '-38-ex1-5-point91849.txt',
             '-38-ex1-2-point91865.txt',
-            '-38-2-4first.txt', # 和 '-38-2-1.txt', '-38-2-2first.txt' Повторите, используя версию с исправленными опечатками.
+            '-38-2-4first.txt',
+            # 和 '-38-2-1.txt', '-38-2-2first.txt' Повторите, используя версию с исправленными опечатками.
 
-            #Одна монета, советы по игре
+            # Одна монета, советы по игре
             '-49-3-1-point94780.txt',
             '-49-ext-1-1.txt',
             '-49-ext-4-1.txt',
 
-            #Переворот ронина, советы по игре
+            # Переворот ронина, советы по игре
             '-47-2-skill-1.txt',
             '-47-2-skill-2.txt',
             '-47-2-skill-3.txt',
