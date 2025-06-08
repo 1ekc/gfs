@@ -4,7 +4,6 @@ import os
 import pathlib
 import re
 import typing
-import chardet  # Добавлен импорт для определения кодировки
 
 import UnityPy
 from UnityPy.classes import TextAsset
@@ -39,6 +38,9 @@ _line_replace_templates = [
 ]
 
 _va11_drinks = {
+    # grep 'Id = ' gf-data-ch/asset/luapatch/collaboration/va11/openva11.lua | \
+    # sed -e 's#^.*Id = #    #' -e 's# ,Name.*Code =#:#' \
+    # -e 's#VA11_##' -e 's#\([A-Z]\)# \1#g' -e 's#" #"#' -e 's#"#'\''#g'
     1: 'Bad Touch',
     2: 'Beer',
     3: 'Bleeding Jane',
@@ -82,9 +84,9 @@ class StoryResources:
     characters: dict[str, dict[str, mapper.SpriteDetails]]
 
     def __init__(self, audio_json: pathlib.Path, background_json: pathlib.Path, character_json: pathlib.Path) -> None:
-        self.audio = json.load(audio_json.open(encoding='utf-8'))
-        self.backgrounds = json.load(background_json.open(encoding='utf-8'))
-        self.characters = json.load(character_json.open(encoding='utf-8'))
+        self.audio = json.load(audio_json.open())
+        self.backgrounds = json.load(background_json.open())
+        self.characters = json.load(character_json.open())
         for character in self.characters.values():
             for k, sprite in character.items():
                 character[k] = mapper.SpriteDetails(**typing.cast(dict[str, typing.Any], sprite))
@@ -96,6 +98,7 @@ class StoryResources:
             else:
                 characters[k.lower()] = v
         self.characters = characters
+
 
 class StoryTranspiler:
     external: StoryResources
@@ -408,70 +411,38 @@ extern.preloadResources({resource_urls})
 
 class Stories:
     directory: pathlib.Path
+
     gf_data_directory: pathlib.Path
+
     destination: pathlib.Path
+
     resource_file: pathlib.Path
+
     extracted: dict[str, pathlib.Path]
+
     content_tags: set[str]
+
     effect_tags: set[str]
+
     missing_audio: dict[str, set[str]]
 
-    def __init__(self, directory: str, destination: str, *,
-                 gf_data_directory: str | None = None,
-                 root_destination: str | None = None,
-                 lang: str = 'rus'):
-        # Явно определяем базовые пути
-        unpack_dir = pathlib.Path(directory).parent  # unpack/
-        downloader_dir = pathlib.Path(directory)  # downloader/
-
-        # Проверяем, если directory уже указывает на output/
-        if downloader_dir.name == 'output':
-            downloader_dir = downloader_dir.parent  # поднимаемся на уровень выше
-
-        # Основные рабочие пути
-        self.directory = downloader_dir
+    def __init__(self, directory: str, destination: str, *, gf_data_directory: str | None = None, root_destination: str | None = None):
+        self.directory = utils.check_directory(directory)
         self.destination = utils.check_directory(destination, create=True)
-
-        # Путь к ресурсному файлу (учитываем output/)
-        self.resource_file = downloader_dir.joinpath('output', 'asset_textavg.ab')
-
-        # Пути к ресурсам (из unpack/)
-        audio_path = unpack_dir.joinpath('audio', 'audio.json')
-        bg_path = unpack_dir.joinpath('images', 'backgrounds.json')
-        chars_path = unpack_dir.joinpath('images', 'characters.json')
-
-        # Отладочный вывод
-        print("\n[DEBUG] Path configuration:")
-        print(f"Unpack directory: {unpack_dir}")
-        print(f"Downloader directory: {downloader_dir}")
-        print(f"Resource file: {self.resource_file} (exists: {self.resource_file.exists()})")
-        print(f"Audio path: {audio_path} (exists: {audio_path.exists()})")
-        print(f"Backgrounds path: {bg_path} (exists: {bg_path.exists()})")
-        print(f"Characters path: {chars_path} (exists: {chars_path.exists()})\n")
-
-        # Проверка существования файлов
-        if not self.resource_file.exists():
-            raise FileNotFoundError(f"Main resource file not found at: {self.resource_file}")
-        if not audio_path.exists():
-            raise FileNotFoundError(f"Audio config not found at: {audio_path}")
-        if not bg_path.exists():
-            raise FileNotFoundError(f"Backgrounds config not found at: {bg_path}")
-        if not chars_path.exists():
-            raise FileNotFoundError(f"Characters config not found at: {chars_path}")
-
-        self.resources = StoryResources(audio_path, bg_path, chars_path)
-
-        # Путь к локализации
-        self.gf_data_directory = unpack_dir.joinpath(f'gf-data-{lang}')
-        print(f"GF Data directory: {self.gf_data_directory} (exists: {self.gf_data_directory.exists()})")
-
-        # Остальная инициализация
-        self.lang = lang
+        self.resource_file = self.directory.joinpath('asset_textavg.ab')
+        root = self.destination.parent if root_destination is None else pathlib.Path(root_destination)
+        self.resources = StoryResources(
+            root.joinpath('audio', 'audio.json'),
+            root.joinpath('images', 'backgrounds.json'),
+            root.joinpath('images', 'characters.json'),
+        )
+        self.gf_data_directory = root.joinpath('gf-data-ch') if gf_data_directory is None else pathlib.Path(gf_data_directory)
         self.content_tags = set()
         self.effect_tags = set()
-        self.missing_audio = {'bgm': set(), 'se': set()}
+        self.missing_audio = { 'bgm': set(), 'se': set() }
         self.extracted = self.extract_all()
         self.copy_missing_pieces()
+        _warning('missing audio: %s', self.missing_audio)
 
     def _decode(self, content: str, filename: str):
         transpiler = StoryTranspiler(self.resources, script=content, filename=filename)
@@ -483,24 +454,6 @@ class Stories:
                 self.missing_audio[k].update(v)
         return chunk
 
-    def _decode_text_asset(self, text: TextAsset) -> str:
-        """Улучшенный метод декодирования текстовых ассетов"""
-        raw_bytes = text.m_Script.tobytes()
-
-        # Попробуем UTF-8 сначала
-        try:
-            return raw_bytes.decode('utf-8')
-        except UnicodeDecodeError:
-            pass
-
-        # Если не получилось, определим кодировку автоматически
-        encoding = chardet.detect(raw_bytes)['encoding']
-        try:
-            return raw_bytes.decode(encoding or 'gbk')  # GBK как fallback для китайских текстов
-        except UnicodeDecodeError:
-            # Последняя попытка с заменой нечитаемых символов
-            return raw_bytes.decode('utf-8', errors='replace')
-
     def extract_all(self):
         assets = UnityPy.load(str(self.resource_file))
         extracted: dict[str, pathlib.Path] = {}
@@ -511,38 +464,22 @@ class Stories:
             if match is None:
                 continue
             name = match.group(1)
-            text = typing.cast(TextAsset, o.read())
-
-            # Используем улучшенный метод декодирования
-            content = self._decode_text_asset(text)
-
+            text = typing.cast(
+                TextAsset,
+                o.read(),
+            )
+            content: str = text.m_Script.tobytes().decode()
             path = self.destination.joinpath(*name.split('/'))
             os.makedirs(path.parent, exist_ok=True)
-            with path.open('w', encoding='utf-8') as f:
-                decoded_content = self._decode(content, name) or ''
-                f.write(decoded_content)
+            with path.open('w') as f:
+                f.write(self._decode(content, name) or '')
             extracted[name] = path
         return extracted
 
     def copy_missing_pieces(self):
-        if self.lang == 'rus':
-            # Пробуем оба возможных пути
-            for folder in ['formatted', 'asset']:
-                directory = self.gf_data_directory.joinpath(folder, 'avgtxt')
-                if directory.exists():
-                    break
-            else:
-                _warning(f'Russian localization directory not found in {self.gf_data_directory}')
-                return
-        else:
-            directory = self.gf_data_directory.joinpath('asset', 'avgtxt')
-            manual_chapters.get_extra_stories(directory)
-            manual_chapters.get_extra_anniversary_stories(directory)
-        # else:
-        #     directory = self.gf_data_directory.joinpath('asset', 'avgtxt')
-        #     manual_chapters.get_extra_stories(directory)
-        #     manual_chapters.get_extra_anniversary_stories(directory)
-
+        manual_chapters.get_extra_stories(self.gf_data_directory.joinpath('asset', 'avgtxt'))
+        manual_chapters.get_extra_anniversary_stories(self.gf_data_directory.joinpath('asset', 'avgtxt'))
+        directory = utils.check_directory(self.gf_data_directory.joinpath('asset', 'avgtxt'))
         for file in directory.glob('**/*.txt'):
             rel = file.relative_to(directory)
             name = str(rel)
@@ -550,21 +487,14 @@ class Stories:
                 _warning('filling in %s', name)
                 path = self.destination.joinpath(rel)
                 path.parent.mkdir(exist_ok=True)
-                with path.open('w', encoding='utf-8') as f:
-                    with file.open('r', encoding='utf-8') as content:
-                        try:
-                            file_content = content.read()
-                        except UnicodeDecodeError:
-                            with file.open('rb') as content_bin:
-                                raw_data = content_bin.read()
-                                encoding = chardet.detect(raw_data)['encoding']
-                                file_content = raw_data.decode(encoding or 'gbk')
-                        f.write(self._decode(file_content, name) or '')
+                with path.open('w') as f:
+                    with file.open() as content:
+                        f.write(self._decode(content.read(), name) or '')
                 self.extracted[name] = path
 
     def save(self):
         path = self.destination.joinpath('stories.json')
-        with path.open('w', encoding='utf-8') as f:  # Добавлена кодировка
+        with path.open('w') as f:
             f.write(json.dumps(
                 dict((k, str(p.relative_to(self.destination))) for k, p in self.extracted.items()),
                 ensure_ascii=False,
