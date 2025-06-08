@@ -78,26 +78,27 @@ _sprite_effects = {
     '隐身': 'stealth',
 }
 
+
 class StoryResources:
     audio: dict[str, str]
     backgrounds: dict[str, str]
     characters: dict[str, dict[str, mapper.SpriteDetails]]
 
     def __init__(self, audio_json: pathlib.Path, background_json: pathlib.Path, character_json: pathlib.Path) -> None:
-        self.audio = json.load(audio_json.open())
-        self.backgrounds = json.load(background_json.open())
-        self.characters = json.load(character_json.open())
-        for character in self.characters.values():
-            for k, sprite in character.items():
-                character[k] = mapper.SpriteDetails(**typing.cast(dict[str, typing.Any], sprite))
-        characters: dict[str, dict[str, mapper.SpriteDetails]] = {}
-        for k, v in self.characters.items():
-            if k.lower() in characters:
-                _warning('duplicate character: %s', k)
-                characters[k.lower()].update(v)
-            else:
-                characters[k.lower()] = v
-        self.characters = characters
+        # Исправлено: добавлено указание кодировки UTF-8 при чтении файлов
+        with audio_json.open(encoding='utf-8') as f:
+            self.audio = json.load(f)
+        with background_json.open(encoding='utf-8') as f:
+            self.backgrounds = json.load(f)
+        with character_json.open(encoding='utf-8') as f:
+            characters_data = json.load(f)
+
+        self.characters = {}
+        for k, v in characters_data.items():
+            character_dict = {}
+            for sprite_key, sprite_value in v.items():
+                character_dict[sprite_key] = mapper.SpriteDetails(**typing.cast(dict[str, typing.Any], sprite_value))
+            self.characters[k.lower()] = character_dict
 
 
 class StoryTranspiler:
@@ -193,7 +194,7 @@ class StoryTranspiler:
                     full_tag = f'<{tag}>'
                     start = effects.index(full_tag)
                     end = effects.index(f'</{tag}>')
-                    parsed[tag] = effects[start + len(full_tag) : end]
+                    parsed[tag] = effects[start + len(full_tag): end]
                 except ValueError:
                     _warning('tag %s wrong in `%s`', tag, effects)
         result = dict((k.lower(), v) for k, v in parsed.items())
@@ -259,7 +260,7 @@ extern.preloadResources({resource_urls})
         line = line.strip()
         if line == '':
             return None
-        line = line.replace('：', ': ') # 中文冒号……
+        line = line.replace('：', ': ')  # 中文冒号……
         if ':' not in line:
             _warning('unrecognized line `%s` in %s', line, self.filename)
             return None
@@ -286,7 +287,7 @@ extern.preloadResources({resource_urls})
             self._resources.add(f'/audio/{bgm}')
             self._markdown.append(f':audio[] /audio/{bgm}')
         if 'se' in effects or 'se1' in effects or 'se2' in effects or 'se3' in effects:
-            se =  effects.get('se') or effects.get('se1') or effects.get('se2') or effects.get('se3') or ''
+            se = effects.get('se') or effects.get('se1') or effects.get('se2') or effects.get('se3') or ''
             if se not in self.external.audio:
                 self.record_missing_audio('se', se)
             se = self.external.audio.get(se, f'se/{se}.m4a')
@@ -426,7 +427,8 @@ class Stories:
 
     missing_audio: dict[str, set[str]]
 
-    def __init__(self, directory: str, destination: str, *, gf_data_directory: str | None = None, root_destination: str | None = None):
+    def __init__(self, directory: str, destination: str, *, gf_data_directory: str | None = None,
+                 root_destination: str | None = None):
         self.directory = utils.check_directory(directory)
         self.destination = utils.check_directory(destination, create=True)
         self.resource_file = self.directory.joinpath('asset_textavg.ab')
@@ -436,10 +438,11 @@ class Stories:
             root.joinpath('images', 'backgrounds.json'),
             root.joinpath('images', 'characters.json'),
         )
-        self.gf_data_directory = root.joinpath('gf-data-ch') if gf_data_directory is None else pathlib.Path(gf_data_directory)
+        self.gf_data_directory = root.joinpath('gf-data-ch') if gf_data_directory is None else pathlib.Path(
+            gf_data_directory)
         self.content_tags = set()
         self.effect_tags = set()
-        self.missing_audio = { 'bgm': set(), 'se': set() }
+        self.missing_audio = {'bgm': set(), 'se': set()}
         self.extracted = self.extract_all()
         self.copy_missing_pieces()
         _warning('missing audio: %s', self.missing_audio)
@@ -471,8 +474,9 @@ class Stories:
             content: str = text.m_Script.tobytes().decode()
             path = self.destination.joinpath(*name.split('/'))
             os.makedirs(path.parent, exist_ok=True)
-            with path.open('w') as f:
-                f.write(self._decode(content, name) or '')
+            with path.open('w', encoding='utf-8') as f:  # Исправлено: UTF-8 при записи
+                decoded_content = self._decode(content, name) or ''
+                f.write(decoded_content)
             extracted[name] = path
         return extracted
 
@@ -487,14 +491,15 @@ class Stories:
                 _warning('filling in %s', name)
                 path = self.destination.joinpath(rel)
                 path.parent.mkdir(exist_ok=True)
-                with path.open('w') as f:
-                    with file.open() as content:
-                        f.write(self._decode(content.read(), name) or '')
+                with path.open('w', encoding='utf-8') as f:  # Исправлено: UTF-8 при записи
+                    with file.open(encoding='utf-8') as content:  # Исправлено: UTF-8 при чтении
+                        decoded_content = self._decode(content.read(), name) or ''
+                        f.write(decoded_content)
                 self.extracted[name] = path
 
     def save(self):
         path = self.destination.joinpath('stories.json')
-        with path.open('w') as f:
+        with path.open('w', encoding='utf-8') as f:  # Исправлено: UTF-8 при записи
             f.write(json.dumps(
                 dict((k, str(p.relative_to(self.destination))) for k, p in self.extracted.items()),
                 ensure_ascii=False,
