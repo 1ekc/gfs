@@ -471,10 +471,20 @@ class Stories:
                 TextAsset,
                 o.read(),
             )
-            content: str = text.m_Script.tobytes().decode()
+            # Пробуем разные кодировки для китайских текстов
+            try:
+                content = text.m_Script.tobytes().decode('utf-8')
+            except UnicodeDecodeError:
+                try:
+                    # Попробуем GBK, часто используется в китайских играх
+                    content = text.m_Script.tobytes().decode('gbk')
+                except UnicodeDecodeError:
+                    # Если не сработает, попробуем GB18030
+                    content = text.m_Script.tobytes().decode('gb18030', errors='replace')
+
             path = self.destination.joinpath(*name.split('/'))
             os.makedirs(path.parent, exist_ok=True)
-            with path.open('w', encoding='utf-8') as f:  # Исправлено: UTF-8 при записи
+            with path.open('w', encoding='utf-8') as f:
                 decoded_content = self._decode(content, name) or ''
                 f.write(decoded_content)
             extracted[name] = path
@@ -491,15 +501,23 @@ class Stories:
                 _warning('filling in %s', name)
                 path = self.destination.joinpath(rel)
                 path.parent.mkdir(exist_ok=True)
-                with path.open('w', encoding='utf-8') as f:  # Исправлено: UTF-8 при записи
-                    with file.open(encoding='utf-8') as content:  # Исправлено: UTF-8 при чтении
-                        decoded_content = self._decode(content.read(), name) or ''
-                        f.write(decoded_content)
+                with path.open('w', encoding='utf-8') as f:
+                    # Пробуем разные кодировки для ручных глав
+                    try:
+                        content = file.read_text(encoding='utf-8')
+                    except UnicodeDecodeError:
+                        try:
+                            content = file.read_text(encoding='gbk')
+                        except UnicodeDecodeError:
+                            content = file.read_text(encoding='gb18030', errors='replace')
+
+                    decoded_content = self._decode(content, name) or ''
+                    f.write(decoded_content)
                 self.extracted[name] = path
 
     def save(self):
         path = self.destination.joinpath('stories.json')
-        with path.open('w', encoding='utf-8') as f:  # Исправлено: UTF-8 при записи
+        with path.open('w', encoding='utf-8') as f:
             f.write(json.dumps(
                 dict((k, str(p.relative_to(self.destination))) for k, p in self.extracted.items()),
                 ensure_ascii=False,
