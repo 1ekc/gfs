@@ -4,14 +4,35 @@ import shutil
 import subprocess
 import typing
 from urllib import request
+import builtins
 
+# --- Глобальная обработка кодировок ---
+_original_str = builtins.str
 
+def safe_str(s, *args, **kwargs):
+    """Автоматически исправляет кодировку строк."""
+    if isinstance(s, bytes):
+        try:
+            return _original_str(s, 'utf-8', *args, **kwargs)
+        except UnicodeError:
+            try:
+                return _original_str(s, 'gb18030', *args, **kwargs)
+            except UnicodeError:
+                try:
+                    return _original_str(s, 'gbk', *args, **kwargs)
+                except UnicodeError:
+                    return _original_str(s, 'latin1', *args, **kwargs)
+    return _original_str(s, *args, **kwargs)
+
+# Переопределяем стандартный str
+builtins.str = safe_str
+
+# --- Остальной код остается без изменений ---
 @dataclasses.dataclass
 class Story:
     name: str
     description: str
     files: list[str | tuple[str, str]]
-
 
 @dataclasses.dataclass
 class Chapter:
@@ -25,7 +46,7 @@ def _chapter_starting():
         name='Стартовый эпизод',
         description='Автзапуск, при первом входе в игру',
         stories=[
-            Story(name=f'第 {i + 1} 节', description='',
+            Story(name=f'Часть {i + 1}', description='',
                   files=[f'startavg/start{i}.txt'])
             for i in range(11 + 1)
         ],
@@ -494,7 +515,6 @@ _manual_processed = set().union(
 def is_manual_processed(file: str):
     return file in _manual_processed
 def manually_process(chapters: dict[int, Chapter], id_mapping: dict[str, int], mapped_files: set[str]):
-    # Сага
     c = chapters[id_mapping['-57']]
     specials = {
         'Источник вишни': ['Lержаться подальше！', '吉光片羽', '樱之蕊'],
@@ -533,9 +553,8 @@ def manually_process(chapters: dict[int, Chapter], id_mapping: dict[str, int], m
         c.stories.append(Story(
             name=character,
             description='剧情',
-            files=[(files[name], name) for name in stories],
+            files=[(files[name], name) for name in stories if name in files],
         ))
-
 
 def manual_naming(story: Story, campaign: int):
     if campaign == -43:  # Что-то не так с именованием Темного прилива.
