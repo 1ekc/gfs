@@ -518,6 +518,14 @@ _manual_processed = set().union(
 def is_manual_processed(file: str):
     return file in _manual_processed
 
+def manual_naming(story: Story, campaign: int):
+    if campaign == -43:  # Что-то не так с именованием Темного прилива.
+        story.name, story.description = story.description, story.name
+        if story.description == 'Время, когда человек разрушает кокон':  # Это -42 Butterfly Shadow in the Cocoon's introduction. Я думаю, что он был скопирован неправильно.
+            story.description = ''
+    if campaign == -38:  # Драма во сне, есть проблема
+        story.name = story.description
+        story.description = ''
 
 def manually_process(chapters: dict[int, Chapter], id_mapping: dict[str, int], mapped_files: set[str]):
     # Сага
