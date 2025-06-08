@@ -118,11 +118,11 @@ class BackgroundCollection:
             ensure_ascii=False,
             indent=2,
         )
-        # Создаем поддиректорию images, если её нет
+        # Создаем директорию images, если её нет
         images_dir = self.destination.parent.joinpath('images')
         images_dir.mkdir(exist_ok=True)
 
-        # Сохраняем в images/backgrounds.json
+        # Сохраняем напрямую в images/backgrounds.json
         path = images_dir.joinpath('backgrounds.json')
         with path.open('w', encoding='utf-8') as f:
             f.write(s)
