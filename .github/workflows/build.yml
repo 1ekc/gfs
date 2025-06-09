@@ -39,6 +39,11 @@ jobs:
           magick --version
           git lfs version
           node --version
+
+      - name: Install PowerShell Core
+        run: |
+          choco install powershell-core -y --no-progress
+          pwsh --version
       - name: Setup Git LFS
         run: |
           git lfs install
@@ -235,10 +240,7 @@ jobs:
       - name: Deploy to Cloudflare Pages
         shell: pwsh
         run: |
-          # Устанавливаем wrangler
           npm install -g wrangler@latest
-
-          # Деплоим
           $distPath = Resolve-Path "./dist"
           wrangler pages deploy $distPath --project-name=gfstory-ru
         env:
