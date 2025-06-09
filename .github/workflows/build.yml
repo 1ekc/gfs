@@ -20,9 +20,15 @@ jobs:
           git config --global core.quotepath false
           $env:PYTHONUTF8 = "1"
           $env:LC_ALL = "C.UTF-8"
-      - name: Check Disk Space (Windows)
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install Node.js deps
         run: |
-          Get-Volume | Format-Table -AutoSize DriveLetter, SizeRemaining, Size
+          pnpm install
+          pnpm add -D cross-env
       - name: Install Windows Dependencies
         run: |
           choco install ffmpeg pngquant imagemagick git-lfs nodejs -y --no-progress
