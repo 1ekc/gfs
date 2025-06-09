@@ -43,6 +43,10 @@ jobs:
       - name: Install PowerShell Core
         run: |
           choco install powershell-core -y --no-progress
+          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
+          refreshenv
+          # Двойная проверка
+          & "C:\Program Files\PowerShell\7\pwsh.exe" --version
           pwsh --version
       - name: Setup Git LFS
         run: |
