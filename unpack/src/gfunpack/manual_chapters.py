@@ -3,6 +3,7 @@ import dataclasses
 import pathlib
 import shutil
 import subprocess
+import logging
 import typing
 from urllib import request
 
@@ -527,7 +528,9 @@ def manual_naming(story: Story, campaign: int):
         story.name = story.description
         story.description = ''
 
+
 def manually_process(chapters: dict[int, Chapter], id_mapping: dict[str, int], mapped_files: set[str]):
+    _logger = logging.getLogger('gfunpack.manual_chapters')  # Добавьте эту строку
     # Сага
     c = chapters[id_mapping['-57']]
     specials = {
@@ -588,8 +591,8 @@ def manually_process(chapters: dict[int, Chapter], id_mapping: dict[str, int], m
             if name in files:
                 file_list.append((files[name], name))
             else:
-                # Логируем отсутствующие файлы
-                print(f"Warning: Missing file for {name} in character {character}")
+                # Используем логгер вместо print
+                _logger.warning('Missing file for %s in character %s', name, character)
 
         c.stories.append(Story(
             name=character,
