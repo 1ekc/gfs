@@ -6,7 +6,7 @@
     "dev": "pnpm build-viewer && vite",
     "build-index": "vite-node test/pagefind-index.ts public/stories public/search",
     "build-editor": "pnpm build-viewer && run-p type-check \"build-only {@}\" --",
-    "build-viewer-only": "cross-env BUILD_TARGET=viewer run-p type-check \"build-only ***@***\" --",
+    "build-viewer-only": "cross-env BUILD_TARGET=viewer run-p type-check \"build-only {@}\" --",
     "build-viewer": "pnpm build-viewer-only && cp viewer/viewer.html public && mkdir -p dist && cp viewer/viewer.html dist",
     "build": "pnpm build-editor",
     "build-only": "vite build",
