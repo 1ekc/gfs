@@ -26,7 +26,7 @@ async function allTxtFiles(path: string): Promise<string[]> {
   return (
     await Promise.all(
       files.map(async (f) => {
-        const p = `${path}/${f}`;
+        const p = pathlib.join(path, f);
         const stat = await fs.stat(p);
         if (stat.isDirectory()) {
           return allTxtFiles(p);
@@ -78,7 +78,9 @@ const results = await Promise.all(Object.values(typedChapters).map(
 ));
 
 const processed = new Set(results.flat().flat().flat());
-const files = (await allTxtFiles(directory)).map((f) => pathlib.relative(directory, f));
+const files = (await allTxtFiles(directory)).map((f) =>
+  pathlib.relative(directory, f).replace(/\\/g, '/') // Нормализация путей для Windows
+);
 const unprocessed = files.filter((f) => !processed.has(f));
 if (unprocessed.length !== 0) {
   // eslint-disable-next-line no-console

@@ -21,8 +21,8 @@ export default defineConfig({
     copyPublicDir: !BUILD_VIEWER,
     rollupOptions: {
       input: BUILD_VIEWER ? {
-        viewer: fileURLToPath(new URL('./viewer.html', import.meta.url)),
-      } : {
+      viewer: fileURLToPath(new URL('./viewer.html', import.meta.url)),
+        } : {
         editor: fileURLToPath(new URL('./index.html', import.meta.url)),
         simulator: fileURLToPath(new URL('./simulator.html', import.meta.url)),
       },
