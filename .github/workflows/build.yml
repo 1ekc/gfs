@@ -42,12 +42,18 @@ jobs:
 
       - name: Install PowerShell Core
         run: |
+          # Устанавливаем PowerShell Core
           choco install powershell-core -y --no-progress
-          Import-Module "$env:ChocolateyInstall\helpers\chocolateyProfile.psm1"
-          refreshenv
-          # Двойная проверка
-          & "C:\Program Files\PowerShell\7\pwsh.exe" --version
-          pwsh --version
+
+          # Добавляем путь в переменную PATH
+          $pwshPath = "C:\Program Files\PowerShell\7"
+          $env:PATH = "$pwshPath;$env:PATH"
+
+          # Сохраняем PATH для последующих шагов
+          echo "PATH=$env:PATH" | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+
+          # Проверяем установку
+          & "$pwshPath\pwsh.exe" --version
       - name: Setup Git LFS
         run: |
           git lfs install
@@ -242,11 +248,11 @@ jobs:
           pnpm build-index
           pnpm build
       - name: Deploy to Cloudflare Pages
-        shell: pwsh
+        shell: powershell  # Используем классический PowerShell вместо pwsh
         run: |
           npm install -g wrangler@latest
           $distPath = Resolve-Path "./dist"
-          wrangler pages deploy $distPath --project-name=gfstory-ru
+          & "C:\Program Files\PowerShell\7\pwsh.exe" -Command "wrangler pages deploy '$distPath' --project-name=gfstory-ru"
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
